@@ -1,0 +1,58 @@
+[INÍCIO DO DOCUMENTO DE MIGRAÇÃO - PROJETO VIARELATORIOS]
+
+Olá, estou migrando este projeto de outra aba para continuar o desenvolvimento. Leia atentamente este resumo para entender o contexto, a estrutura de arquivos e as regras de trabalho.
+
+### 1. VISÃO GERAL DO PROJETO
+- **Nome:** ViaRelatorios (Sistema de Vistorias Imobiliárias com IA).
+- **Stack:** Next.js 15 (App Router, Turbopack), TypeScript, Tailwind CSS, Supabase (Auth + Database), Google Gemini (IA).
+- **Objetivo:** Corretores criam vistorias, descrevem cômodos de forma estruturada, e a IA reescreve as descrições em linguagem técnica de laudo.
+
+### 2. MAPA DA ESTRUTURA DE PASTAS (CRÍTICO)
+O projeto usa Next.js App Router. Existem vários arquivos `page.tsx` e `actions.ts`. Use este mapa para saber exatamente qual arquivo editar:
+
+- `src/app/(dashboard)/dashboard/`
+  - `page.tsx` (Server Component que busca dados e chama o ListaVistorias)
+  - `ListaVistorias.tsx` (Client Component com os cards de resumo e lista filtrada)
+- `src/app/(dashboard)/vistoria/nova/`
+  - `page.tsx` (Formulário de criação com autocomplete de CEP via ViaCEP)
+  - `actions.ts` (Função `criarVistoria`)
+- `src/app/(dashboard)/vistoria/[id]/`
+  - `page.tsx` (Tela de detalhes da vistoria, exibe dados e lista de cômodos)
+  - `actions.ts` (Funções `adicionarComodo` e `finalizarVistoria`)
+  - `ModalAdicionarComodo.tsx` (Client Component com selects para Cômodo, Item, Estado)
+- `src/app/(dashboard)/vistoria/[id]/editar/`
+  - `page.tsx` (Server Component que busca dados e passa para o Client)
+  - `actions.ts` (Função `atualizarDetalhesVistoria`)
+  - `EditarVistoriaClient.tsx` (Formulário de edição pré-preenchido)
+- `src/app/(dashboard)/vistoria/[id]/revisao/`
+  - `page.tsx` e `actions.ts` (Ainda em desenvolvimento/básico)
+- `src/lib/`
+  - `supabase/server.ts` e `client.ts` (Configuração do Supabase)
+  - `gemini.ts` (Integração com a IA do Google)
+
+### 3. ESTADO ATUAL DO BANCO DE DADOS (SUPABASE)
+- **Tabela `profiles`:** id (UUID), nome, email. (RLS desativado para MVP).
+- **Tabela `vistorias`:** id, user_id, tipo (ENTRADA/SAIDA/CAPTACAO), nome_cliente, endereco_cep, endereco_rua, endereco_bairro, endereco_cidade, endereco_numero, endereco_complemento, data_vistoria, status (RASCUNHO/FINALIZADO), criado_em.
+- **Tabela `comodos`:** id, vistoria_id, nome_comodo, descricao_bruta, descricao_processada_ia, ordem, criado_em.
+
+### 4. FUNCIONALIDADES JÁ IMPLEMENTADAS E FUNCIONAIS
+1. Login/Cadastro e Dashboard com filtros (Total, Em Andamento, Finalizadas).
+2. Criação de Vistoria com autocomplete de CEP.
+3. Tela de Detalhes com lista de cômodos e exibição do texto otimizado pela IA.
+4. Modal de Adicionar Cômodo com selects estruturados (Cômodo, Item, Estado).
+5. Botão "Finalizar Vistoria" que muda o status e redireciona para o Dashboard.
+6. Tela de Edição de Vistoria (dados principais) pré-preenchida.
+
+### 5. PENDÊNCIAS E PRÓXIMOS PASSOS IMEDIATOS
+- **Fluxo de Edição de Finalizadas:** Atualmente, vistorias finalizadas podem ser editadas diretamente. O usuário quer planejar um botão "Reabrir" para voltar o status para "Em Andamento" antes de permitir edição.
+- **Tela de Revisão e Geração de PDF:** A rota `/revisao` existe mas precisa ser desenvolvida para gerar o laudo final.
+- **Upload de Fotos:** Feature futura (pós-MVP).
+
+### 6. REGRAS DE OURO PARA ESTA CONVERSA (LEIA COM ATENÇÃO)
+1. **UM PASSO POR MENSAGEM:** Nunca me dê 3 ou 4 instruções de uma vez. Dê uma instrução clara, espere eu confirmar que fiz, e só então passe a próxima.
+2. **NÃO CHUTE NOMES DE ARQUIVOS:** Se for para editar um `page.tsx`, me diga o caminho completo (ex: `src/app/(dashboard)/vistoria/[id]/page.tsx`). Eu me perco facilmente com arquivos de mesmo nome.
+3. **SEMPRE QUE PEDIR PARA COLAR CÓDIGO:** Me diga exatamente o que apagar e o que colar. Se for para substituir um bloco, me mostre o bloco antigo e o novo.
+4. **NEXT.JS 15:** Lembre-se que `params` agora é uma Promise e precisa de `await`. Server Components não podem ter `'use client'`.
+5. **TEXTO "RASCUNHO":** Em toda a interface, substitua "Rascunho" por "Em Andamento" e "Finalizado" por "Finalizada".
+
+[AGUARDE MINHA PRÓXIMA MENSAGEM PARA INICIAR O TRABALHO]
