@@ -58,10 +58,22 @@ export default async function DetalhesVistoriaPage({ params }: { params: Promise
                                 <p className="text-gray-500 mt-1">Realizada em {dataFormatada}</p>
                             </div>
                             <div className="mt-4 md:mt-0 flex flex-col sm:flex-row gap-3">
+                                {/* O botão de PDF fica SEMPRE visível, pois é o produto final do serviço */}
+                                <Link 
+                                    href={`/vistoria/${vistoriaId}/revisao`} 
+                                    className="relative z-50 px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors text-center flex items-center justify-center gap-2 shadow-sm"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    {isFinalizada ? 'Visualizar e Baixar PDF' : 'Revisar e Gerar PDF'}
+                                </Link>
+
+                                {/* Botões de edição e finalização só aparecem se NÃO estiver finalizada */}
                                 {!isFinalizada && (
                                     <>
-                                        <Link href={`/vistoria/${vistoriaId}/editar`} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-center">
-                                            Editar Vistoria
+                                        <Link href={`/vistoria/${vistoriaId}/editar`} className="relative z-50 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors text-center border border-gray-300">
+                                            Editar Dados
                                         </Link>
                                         
                                         <form action={finalizarVistoria.bind(null, vistoriaId)}>
