@@ -18,6 +18,8 @@ export default function EditarVistoriaClient({ vistoria, comodos }: { vistoria: 
     const [bairro, setBairro] = useState(vistoria.endereco_bairro || '');
     const [cidade, setCidade] = useState(vistoria.endereco_cidade || '');
 
+    const [modalComodoAberto, setModalComodoAberto] = useState(false);
+
     // Lógica do CEP (igual à tela de criação)
     async function buscarEnderecoPorCep(cepDigitado: string) {
         const cepLimpo = cepDigitado.replace(/\D/g, '');
@@ -138,14 +140,27 @@ export default function EditarVistoriaClient({ vistoria, comodos }: { vistoria: 
 
                     {/* Seção de Cômodos dentro da Edição */}
                     <div className="border-t border-gray-200 pt-6 mt-6">
-                        <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-semibold text-gray-800">
                                 Cômodos Vistoriados ({comodos?.length || 0})
                             </h3>
+                            
+                            {/* BOTÃO NO LUGAR CERTO, FORA DO FORMULÁRIO PRINCIPAL */}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setComodoParaEditar(null); // Garante que é um novo cômodo
+                                    setModalComodoAberto(true); // Abre o modal
+                                }}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm"
+                            >
+                                + Adicionar Cômodo
+                            </button>
                         </div>
-                        
+
+                        {/* Lista visual dos cômodos (mantenha o seu código de lista aqui embaixo) */}
                         {comodos && comodos.length > 0 ? (
-                                                        <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                            <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                                 {comodos.map((comodo: any) => (
                                     <div key={comodo.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm flex justify-between items-start gap-3">
                                         <div className="flex-1">
@@ -163,7 +178,7 @@ export default function EditarVistoriaClient({ vistoria, comodos }: { vistoria: 
                                             </div>
                                         </div>
                                         
-                                        {/* Botão de Editar */}
+                                        {/* Botão de Editar (Lápis) */}
                                         <button
                                             type="button"
                                             onClick={() => setComodoParaEditar(comodo)}
@@ -179,7 +194,7 @@ export default function EditarVistoriaClient({ vistoria, comodos }: { vistoria: 
                             </div>
                         ) : (
                             <p className="text-sm text-gray-500 italic bg-gray-50 p-3 rounded-lg border border-dashed border-gray-300 text-center">
-                                Nenhum cômodo adicionado ainda. Use o botão "Adicionar Cômodo" acima.
+                                Nenhum cômodo adicionado ainda. Use o botão acima.
                             </p>
                         )}
                     </div>
@@ -192,13 +207,20 @@ export default function EditarVistoriaClient({ vistoria, comodos }: { vistoria: 
                         </button>
                     </div>
                 </form>
-                {/* O MODAL FICA FORA DO FORMULÁRIO PRINCIPAL */}
+                
+                {/* O MODAL FICA AQUI (FORA DO FORM), MAS SÓ APARECE QUANDO 'aberto' FOR TRUE */}
                 <ModalAdicionarComodo 
                     vistoriaId={vistoria.id} 
                     comodoParaEditar={comodoParaEditar} 
-                    onClose={() => setComodoParaEditar(null)} 
+                    aberto={modalComodoAberto}
+                    onClose={() => {
+                        setModalComodoAberto(false);
+                        setComodoParaEditar(null);
+                    }} 
                 />
             </div>
         </div>
     );
 }
+
+

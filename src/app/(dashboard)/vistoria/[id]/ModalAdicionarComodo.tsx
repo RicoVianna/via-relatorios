@@ -38,13 +38,20 @@ function parseDescricaoBruta(descricao: string | null) {
 export default function ModalAdicionarComodo({
     vistoriaId,
     comodoParaEditar,
+    aberto,
     onClose
 }: {
     vistoriaId: string;
     comodoParaEditar?: any;
+    aberto: boolean; 
     onClose?: () => void;
 }) {
-    const [modalAberto, setModalAberto] = useState(false);
+    const [modalAberto, setModalAberto] = useState(aberto);
+
+    useEffect(() => {
+        setModalAberto(aberto);
+    }, [aberto]);
+    
     const [isLoading, setIsLoading] = useState(false);
     const [erro, setErro] = useState('');
     const router = useRouter();
@@ -139,118 +146,122 @@ export default function ModalAdicionarComodo({
         }
     }
 
+    // Se não estiver aberto, não renderiza nada na tela
+    if (!modalAberto) return null;
+
+        // Se não estiver aberto, não renderiza nada na tela
+    if (!modalAberto) return null;
+
     return (
-        <>
-            <button onClick={() => setModalAberto(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
-                + Adicionar Cômodo
-            </button>
-
-            {modalAberto && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] overflow-y-auto">
-                        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center sticky top-0">
-                            <h3 className="text-lg font-bold text-gray-900">Adicionar Item à Vistoria</h3>
-                            <button onClick={() => setModalAberto(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none">&times;</button>
-                        </div>
-
-                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Selecione o Cômodo *</label>
-                                <select 
-                                    required 
-                                    value={comodo} 
-                                    onChange={(e) => setComodo(e.target.value)} 
-                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
-                                >
-                                    <option value="">-- Selecione --</option>
-                                    {OPCOES_COMODOS.map(op => <option key={op} value={op}>{op}</option>)}
-                                </select>
-                            </div>
-
-                            {/* Campo que aparece SOMENTE se "Outro" for selecionado */}
-                            {comodo === 'Outro (especificar)' && (
-                                <div className="animate-fade-in">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Qual é o nome deste cômodo/área? *</label>
-                                    <input 
-                                        type="text" 
-                                        required
-                                        value={comodoCustomizado}
-                                        onChange={(e) => setComodoCustomizado(e.target.value)}
-                                        placeholder="Ex: Corredor do 2º andar, Área de Churrasqueira..."
-                                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                    />
-                                </div>
-                            )}
-
-
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Estado de Conservação <span className="text-red-500">*</span></label>
-                                <select 
-                                    required 
-                                    value={estado} 
-                                    onChange={(e) => setEstado(e.target.value)} 
-                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
-                                >
-                                    <option value="BOM">Bom (Sem avarias, limpo, funcional)</option>
-                                    <option value="REGULAR">Regular (Desgaste natural, pequenas marcas, sujeira leve)</option>
-                                    <option value="RUIM">Ruim (Avarias, quebrado, sujo, requer reparo/troca)</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    O que está sendo vistoriado? {estado !== 'BOM' && <span className="text-red-500">*</span>}
-                                </label>
-                                <select 
-                                    required={estado !== 'BOM'} 
-                                    value={item} 
-                                    onChange={(e) => setItem(e.target.value)} 
-                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
-                                >
-                                    <option value="">
-                                        {estado === 'BOM' ? '-- Nenhum problema específico --' : '-- Selecione o Item com avaria --'}
-                                    </option>
-                                    {OPCOES_ITENS.map(op => <option key={op} value={op}>{op}</option>)}
-                                </select>
-                                {estado === 'BOM' && (
-                                    <p className="text-xs text-green-600 mt-1">Como o estado é "Bom", este campo é opcional.</p>
-                                )}
-                                {estado !== 'BOM' && (
-                                    <p className="text-xs text-gray-500 mt-1">Selecione o item específico que apresenta problema.</p>
-                                )}
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Observações Específicas (Opcional)</label>
-                                <textarea 
-                                    value={observacao} 
-                                    onChange={(e) => setObservacao(e.target.value)} 
-                                    rows={3} 
-                                    placeholder="Ex: Risco profundo no centro do piso, tinta descascando perto da janela, torneira pingando..."
-                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">Use este campo apenas para detalhar o estado do item selecionado acima.</p>
-                            </div>
-                                                        <div className="pt-4 border-t border-gray-200 flex gap-3">
-                                <button 
-                                    type="button" 
-                                    onClick={() => setModalAberto(false)}
-                                    className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
-                                >
-                                    Cancelar
-                                </button>
-                                <button 
-                                    type="submit" 
-                                    className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm"
-                                >
-                                    Salvar Item
-                                </button>
-                            </div>
-                        </form>
-                    </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] overflow-y-auto">
+                <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center sticky top-0">
+                    <h3 className="text-lg font-bold text-gray-900">
+                        {comodoParaEditar ? 'Editar Item da Vistoria' : 'Adicionar Item à Vistoria'}
+                    </h3>
+                    <button 
+                        type="button" 
+                        onClick={resetForm} 
+                        className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+                    >
+                        &times;
+                    </button>
                 </div>
-            )}
-        </>
+
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Selecione o Cômodo *</label>
+                        <select 
+                            required 
+                            value={comodo} 
+                            onChange={(e) => setComodo(e.target.value)} 
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                        >
+                            <option value="">-- Selecione --</option>
+                            {OPCOES_COMODOS.map(op => <option key={op} value={op}>{op}</option>)}
+                        </select>
+                    </div>
+
+                    {comodo === 'Outro (especificar)' && (
+                        <div className="animate-fade-in">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Qual é o nome deste cômodo/área? *</label>
+                            <input 
+                                type="text" 
+                                required
+                                value={comodoCustomizado}
+                                onChange={(e) => setComodoCustomizado(e.target.value)}
+                                placeholder="Ex: Corredor do 2º andar, Área de Churrasqueira..."
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                    )}
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Estado de Conservação <span className="text-red-500">*</span></label>
+                        <select 
+                            required 
+                            value={estado} 
+                            onChange={(e) => setEstado(e.target.value)} 
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                        >
+                            <option value="BOM">Bom (Sem avarias, limpo, funcional)</option>
+                            <option value="REGULAR">Regular (Desgaste natural, pequenas marcas, sujeira leve)</option>
+                            <option value="RUIM">Ruim (Avarias, quebrado, sujo, requer reparo/troca)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            O que está sendo vistoriado? {estado !== 'BOM' && <span className="text-red-500">*</span>}
+                        </label>
+                        <select 
+                            required={estado !== 'BOM'} 
+                            value={item} 
+                            onChange={(e) => setItem(e.target.value)} 
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                        >
+                            <option value="">
+                                {estado === 'BOM' ? '-- Nenhum problema específico --' : '-- Selecione o Item com avaria --'}
+                            </option>
+                            {OPCOES_ITENS.map(op => <option key={op} value={op}>{op}</option>)}
+                        </select>
+                        {estado === 'BOM' && (
+                            <p className="text-xs text-green-600 mt-1">Como o estado é "Bom", este campo é opcional.</p>
+                        )}
+                        {estado !== 'BOM' && (
+                            <p className="text-xs text-gray-500 mt-1">Selecione o item específico que apresenta problema.</p>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Observações Específicas (Opcional)</label>
+                        <textarea 
+                            value={observacao} 
+                            onChange={(e) => setObservacao(e.target.value)} 
+                            rows={3} 
+                            placeholder="Ex: Risco profundo no centro do piso, tinta descascando perto da janela..."
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+
+                    <div className="pt-4 border-t border-gray-200 flex gap-3">
+                        <button 
+                            type="button" 
+                            onClick={resetForm}
+                            className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                        <button 
+                            type="submit" 
+                            disabled={isLoading}
+                            className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm"
+                        >
+                            {isLoading ? 'Salvando...' : (comodoParaEditar ? 'Atualizar Cômodo' : 'Salvar Item')}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     );
 }

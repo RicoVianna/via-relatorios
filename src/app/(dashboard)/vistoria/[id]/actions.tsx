@@ -40,6 +40,7 @@ export async function adicionarComodo(formData: FormData) {
 
     // 5. Revalidar a página para mostrar o novo cômodo
     revalidatePath(`/vistoria/${vistoriaId}`);
+    revalidatePath(`/vistoria/${vistoriaId}/editar`);
 }
 
 export async function atualizarComodo(formData: FormData) {
