@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { adicionarComodo } from './actions';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { adicionarComodo, atualizarComodo } from './actions';
 
 // Lista expandida para cobrir a maioria dos cenários
 const OPCOES_COMODOS = [
@@ -18,43 +19,121 @@ const OPCOES_ITENS = [
     'Luminárias', 'Vidros', 'Fechaduras', 'Móveis Planejados', 'Outros'
 ];
 
-export default function ModalAdicionarComodo({ vistoriaId }: { vistoriaId: string }) {
+// FUNÇÃO NOVA: Extrai os dados do texto que está no banco
+function parseDescricaoBruta(descricao: string | null) {
+    if (!descricao) return { item: '', estado: 'BOM', observacao: '' };
+    
+    const itemMatch = descricao.match(/Item:\s*([^\.]+)\./);
+    const item = itemMatch ? itemMatch[1].trim() : '';
+    
+    const estadoMatch = descricao.match(/Estado de conservação:\s*([^\.]+)\./);
+    const estado = estadoMatch ? estadoMatch[1].trim() : 'BOM';
+    
+    const obsMatch = descricao.match(/Observações específicas:\s*(.+)/);
+    const observacao = obsMatch ? obsMatch[1].trim() : '';
+    
+    return { item, estado, observacao };
+}
+
+export default function ModalAdicionarComodo({
+    vistoriaId,
+    comodoParaEditar,
+    onClose
+}: {
+    vistoriaId: string;
+    comodoParaEditar?: any;
+    onClose?: () => void;
+}) {
     const [modalAberto, setModalAberto] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [erro, setErro] = useState('');
+    const router = useRouter();
     
-    const [comodo, setComodo] = useState('');
-    const [comodoCustomizado, setComodoCustomizado] = useState(''); // Novo estado para "Outro"
-    const [item, setItem] = useState('');
-    const [estado, setEstado] = useState('BOM');
-    const [observacao, setObservacao] = useState('');
+    // Se estiver editando, usa os dados do cômodo. Se não, começa vazio.
+    const [comodo, setComodo] = useState(comodoParaEditar?.nome_comodo || '');
+    const [comodoCustomizado, setComodoCustomizado] = useState(comodoParaEditar?.nome_comodo_customizado || '');
+    const [item, setItem] = useState(comodoParaEditar?.item_vistoriado || '');
+    const [estado, setEstado] = useState(comodoParaEditar?.estado_conservacao || 'BOM');
+    const [observacao, setObservacao] = useState(comodoParaEditar?.observacao || '');
 
-    async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-        e.preventDefault();
-        setIsLoading(true);
-        try {
-            const formData = new FormData();
-            formData.append('vistoria_id', vistoriaId);
+        // Quando o cômodo para editar muda: abre o modal e preenche os campos
+    // Quando o cômodo para editar muda: abre o modal e preenche os campos
+    useEffect(() => {
+        if (comodoParaEditar) {
+            setModalAberto(true);
+            setComodo(comodoParaEditar.nome_comodo || '');
+            setComodoCustomizado(comodoParaEditar.nome_comodo_customizado || '');
             
-            // Define o nome final do cômodo (o selecionado ou o digitado)
-            const nomeFinalDoComodo = comodo === 'Outro (especificar)' ? comodoCustomizado : comodo;
-            formData.append('nome_comodo', nomeFinalDoComodo);
-            
-            // Monta a descrição estruturada para a IA
-            const descricaoEstruturada = `Cômodo: ${nomeFinalDoComodo}. Item: ${item}. Estado de conservação: ${estado}. Observações específicas: ${observacao || 'Sem observações adicionais.'}`;
-            formData.append('descricao_bruta', descricaoEstruturada);
-
-            await adicionarComodo(formData);
-            
-            // Reseta e fecha
+            // Usa a função nova para preencher os campos que estavam no texto
+            const { item, estado, observacao } = parseDescricaoBruta(comodoParaEditar.descricao_bruta);
+            setItem(item);
+            setEstado(estado);
+            setObservacao(observacao);
+        } else {
             setModalAberto(false);
             setComodo('');
             setComodoCustomizado('');
             setItem('');
             setEstado('BOM');
             setObservacao('');
-        } catch (error) {
+        }
+    }, [comodoParaEditar?.id]);
+
+    // Função para limpar o formulário quando fechar o modal
+    const resetForm = () => {
+        setComodo('');
+        setComodoCustomizado('');
+        setItem('');
+        setEstado('BOM');
+        setObservacao('');
+        setErro('');
+        setModalAberto(false);
+        if (onClose) onClose();
+    };
+
+    async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+        setIsLoading(true);
+        setErro('');
+        
+        try {
+            const formData = new FormData();
+            formData.append('vistoria_id', vistoriaId);
+            
+            // SE FOR EDIÇÃO: envia o ID do cômodo para o servidor saber qual atualizar
+            if (comodoParaEditar) {
+                formData.append('comodo_id', comodoParaEditar.id);
+            }
+
+            // Define o nome final do cômodo (o selecionado ou o digitado)
+            const nomeFinalDoComodo = comodo === 'Outro (especificar)' ? comodoCustomizado : comodo;
+            formData.append('nome_comodo', nomeFinalDoComodo);
+            
+            // NOVAS LINHAS: Enviam os dados separados para o banco salvar corretamente
+            formData.append('estado_conservacao', estado);
+            formData.append('item_vistoriado', item);
+            formData.append('observacao', observacao);
+            
+            // Monta a descrição estruturada para a IA
+            const descricaoEstruturada = `Cômodo: ${nomeFinalDoComodo}. Item: ${item || 'Nenhum específico'}. Estado de conservação: ${estado}. Observações específicas: ${observacao || 'Sem observações adicionais.'}`;
+            formData.append('descricao_bruta', descricaoEstruturada);
+
+            // DECISÃO: Se existir comodoParaEditar, atualiza. Se não, cria um novo.
+            if (comodoParaEditar) {
+                await atualizarComodo(formData);
+            } else {
+                await adicionarComodo(formData);
+            }
+            
+            // Reseta o formulário e fecha o modal
+            resetForm();
+            
+            // Atualiza a tela para mostrar a alteração imediatamente
+            router.refresh(); 
+            
+        } catch (error: any) {
             console.error(error);
-            alert('Erro ao salvar. Tente novamente.');
+            setErro(error.message || 'Erro ao salvar. Tente novamente.');
         } finally {
             setIsLoading(false);
         }
@@ -103,21 +182,10 @@ export default function ModalAdicionarComodo({ vistoriaId }: { vistoriaId: strin
                                 </div>
                             )}
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">O que está sendo vistoriado? *</label>
-                                <select 
-                                    required 
-                                    value={item} 
-                                    onChange={(e) => setItem(e.target.value)} 
-                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
-                                >
-                                    <option value="">-- Selecione o Item --</option>
-                                    {OPCOES_ITENS.map(op => <option key={op} value={op}>{op}</option>)}
-                                </select>
-                            </div>
+
 
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Estado de Conservação *</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Estado de Conservação <span className="text-red-500">*</span></label>
                                 <select 
                                     required 
                                     value={estado} 
@@ -131,6 +199,29 @@ export default function ModalAdicionarComodo({ vistoriaId }: { vistoriaId: strin
                             </div>
 
                             <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    O que está sendo vistoriado? {estado !== 'BOM' && <span className="text-red-500">*</span>}
+                                </label>
+                                <select 
+                                    required={estado !== 'BOM'} 
+                                    value={item} 
+                                    onChange={(e) => setItem(e.target.value)} 
+                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                                >
+                                    <option value="">
+                                        {estado === 'BOM' ? '-- Nenhum problema específico --' : '-- Selecione o Item com avaria --'}
+                                    </option>
+                                    {OPCOES_ITENS.map(op => <option key={op} value={op}>{op}</option>)}
+                                </select>
+                                {estado === 'BOM' && (
+                                    <p className="text-xs text-green-600 mt-1">Como o estado é "Bom", este campo é opcional.</p>
+                                )}
+                                {estado !== 'BOM' && (
+                                    <p className="text-xs text-gray-500 mt-1">Selecione o item específico que apresenta problema.</p>
+                                )}
+                            </div>
+
+                            <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Observações Específicas (Opcional)</label>
                                 <textarea 
                                     value={observacao} 
@@ -141,21 +232,19 @@ export default function ModalAdicionarComodo({ vistoriaId }: { vistoriaId: strin
                                 />
                                 <p className="text-xs text-gray-500 mt-1">Use este campo apenas para detalhar o estado do item selecionado acima.</p>
                             </div>
-
-                            <div className="flex gap-3 pt-4 sticky bottom-0 bg-white pb-2">
+                                                        <div className="pt-4 border-t border-gray-200 flex gap-3">
                                 <button 
                                     type="button" 
-                                    onClick={() => setModalAberto(false)} 
-                                    className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50"
+                                    onClick={() => setModalAberto(false)}
+                                    className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
                                 >
                                     Cancelar
                                 </button>
                                 <button 
                                     type="submit" 
-                                    disabled={isLoading}
-                                    className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50"
+                                    className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm"
                                 >
-                                    {isLoading ? 'Processando com IA...' : 'Salvar Item'}
+                                    Salvar Item
                                 </button>
                             </div>
                         </form>

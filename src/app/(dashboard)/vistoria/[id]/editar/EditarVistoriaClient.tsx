@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { atualizarDetalhesVistoria } from './actions';
+import ModalAdicionarComodo from '../ModalAdicionarComodo';
 
 export default function EditarVistoriaClient({ vistoria, comodos }: { vistoria: any, comodos?: any[] }) {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [erro, setErro] = useState('');
+    const [comodoParaEditar, setComodoParaEditar] = useState<any>(null);
     
     // Inicializa os campos com os dados que já existem no banco
     const [cep, setCep] = useState(vistoria.endereco_cep || '');
@@ -134,6 +136,54 @@ export default function EditarVistoriaClient({ vistoria, comodos }: { vistoria: 
                         </div>
                     </div>
 
+                    {/* Seção de Cômodos dentro da Edição */}
+                    <div className="border-t border-gray-200 pt-6 mt-6">
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-lg font-semibold text-gray-800">
+                                Cômodos Vistoriados ({comodos?.length || 0})
+                            </h3>
+                        </div>
+                        
+                        {comodos && comodos.length > 0 ? (
+                                                        <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                                {comodos.map((comodo: any) => (
+                                    <div key={comodo.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm flex justify-between items-start gap-3">
+                                        <div className="flex-1">
+                                            <div className="font-semibold text-gray-900 flex justify-between mb-1">
+                                                <span>{comodo.nome_comodo}</span>
+                                                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                                    comodo.estado_conservacao === 'BOM' ? 'bg-green-100 text-green-700' :
+                                                    comodo.estado_conservacao === 'REGULAR' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+                                                }`}>
+                                                    {comodo.estado_conservacao || 'N/A'}
+                                                </span>
+                                            </div>
+                                            <div className="text-gray-600 line-clamp-2">
+                                                {comodo.descricao_processada_ia || comodo.descricao_bruta || "Sem descrição"}
+                                            </div>
+                                        </div>
+                                        
+                                        {/* Botão de Editar */}
+                                        <button
+                                            type="button"
+                                            onClick={() => setComodoParaEditar(comodo)}
+                                            className="text-blue-600 hover:text-blue-800 p-1.5 hover:bg-blue-100 rounded-lg transition-colors flex-shrink-0"
+                                            title="Editar este cômodo"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-gray-500 italic bg-gray-50 p-3 rounded-lg border border-dashed border-gray-300 text-center">
+                                Nenhum cômodo adicionado ainda. Use o botão "Adicionar Cômodo" acima.
+                            </p>
+                        )}
+                    </div>
+
                     {/* Botões */}
                     <div className="flex gap-3 pt-6">
                         <button type="button" onClick={() => router.back()} className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50">Cancelar</button>
@@ -142,6 +192,12 @@ export default function EditarVistoriaClient({ vistoria, comodos }: { vistoria: 
                         </button>
                     </div>
                 </form>
+                {/* O MODAL FICA FORA DO FORMULÁRIO PRINCIPAL */}
+                <ModalAdicionarComodo 
+                    vistoriaId={vistoria.id} 
+                    comodoParaEditar={comodoParaEditar} 
+                    onClose={() => setComodoParaEditar(null)} 
+                />
             </div>
         </div>
     );

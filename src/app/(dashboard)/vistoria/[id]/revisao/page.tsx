@@ -22,6 +22,8 @@ export default async function RevisaoPage({ params }: { params: Promise<{ id: st
         redirect('/dashboard');
     }
 
+    const isFinalizada = vistoria.status === 'FINALIZADO';
+
     // Buscar cômodos da vistoria
     const { data: comodos } = await supabase
         .from('comodos')
@@ -31,12 +33,14 @@ export default async function RevisaoPage({ params }: { params: Promise<{ id: st
 
     return (
         <main className="min-h-screen bg-gray-50 pb-20">
-            {/* Header */}
+            {/* Header com título e botão de voltar condicionais */}
             <header className="bg-white p-4 shadow-sm flex items-center sticky top-0 z-10">
-                <Link href={`/vistoria/${vistoriaId}/editar`} className="text-gray-600 mr-4 hover:text-blue-600 transition-colors">
-                    ← Voltar para Edição
+                <Link href={`/vistoria/${vistoriaId}`} className="text-gray-600 mr-4 hover:text-blue-600 transition-colors">
+                    ← {isFinalizada ? 'Voltar aos Detalhes' : 'Voltar para Edição'}
                 </Link>
-                <h1 className="text-lg font-bold text-gray-900">Revisão Final</h1>
+                <h1 className="text-lg font-bold text-gray-900">
+                    {isFinalizada ? 'Visualização do Laudo (Somente Leitura)' : 'Revisão Final'}
+                </h1>
             </header>
 
             <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
@@ -69,9 +73,11 @@ export default async function RevisaoPage({ params }: { params: Promise<{ id: st
                     </div>
                 </div>
 
-                {/* Lista de Cômodos para Revisão */}
+                {/* Lista de Cômodos para Revisão (COM BLOQUEIOS DE EDIÇÃO) */}
                 <div>
-                    <h2 className="text-lg font-bold text-gray-900 mb-4">Cômodos Vistoriados ({comodos?.length || 0})</h2>
+                    <h2 className="text-lg font-bold text-gray-900 mb-4">
+                        {isFinalizada ? 'Cômodos Vistoriados (Somente Leitura)' : `Cômodos Vistoriados (${comodos?.length || 0})`}
+                    </h2>
                     <div className="space-y-4">
                         {comodos?.map((comodo: any) => (
                             <div key={comodo.id} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
@@ -90,7 +96,8 @@ export default async function RevisaoPage({ params }: { params: Promise<{ id: st
                                     <p className="text-gray-500 text-sm italic bg-gray-50 p-3 rounded-lg">{comodo.descricao_bruta || "Sem descrição."}</p>
                                 )}
 
-                                {!comodo.descricao_processada_ia && (
+                                {/* BOTÃO DE IA: SÓ APARECE SE NÃO ESTIVER FINALIZADA E NÃO TIVER IA */}
+                                {!isFinalizada && !comodo.descricao_processada_ia && (
                                     <form action={processarDescricaoIA} className="mt-4 pt-4 border-t border-gray-100">
                                         <input type="hidden" name="comodo_id" value={comodo.id} />
                                         <input type="hidden" name="vistoria_id" value={vistoriaId} />
@@ -105,12 +112,15 @@ export default async function RevisaoPage({ params }: { params: Promise<{ id: st
                             </div>
                         ))}
                         
+                        {/* MENSAGEM DE NENHUM CÔMODO: LINK DE EDIÇÃO BLOQUEADO SE FINALIZADA */}
                         {(!comodos || comodos.length === 0) && (
                             <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
                                 <p className="text-gray-500">Nenhum cômodo cadastrado nesta vistoria.</p>
-                                <Link href={`/vistoria/${vistoriaId}/editar`} className="text-blue-600 hover:underline text-sm mt-2 inline-block">
-                                    Adicionar cômodos na edição
-                                </Link>
+                                {!isFinalizada && (
+                                    <Link href={`/vistoria/${vistoriaId}/editar`} className="text-blue-600 hover:underline text-sm mt-2 inline-block">
+                                        Adicionar cômodos na edição
+                                    </Link>
+                                )}
                             </div>
                         )}
                     </div>
@@ -118,8 +128,8 @@ export default async function RevisaoPage({ params }: { params: Promise<{ id: st
 
                 {/* Botões de Ação Final */}
                 <div className="pt-6 border-t border-gray-200 flex flex-col sm:flex-row gap-3">
-                    <Link href={`/vistoria/${vistoriaId}/editar`} className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 text-center transition-colors">
-                        Voltar e Editar
+                    <Link href={`/vistoria/${vistoriaId}`} className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 text-center transition-colors">
+                        {isFinalizada ? 'Voltar aos Detalhes' : 'Voltar e Editar'}
                     </Link>
                     <BotaoGerarPDF vistoria={vistoria} comodos={comodos || []} />
                 </div>

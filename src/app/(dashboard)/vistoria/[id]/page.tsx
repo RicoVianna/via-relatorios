@@ -113,8 +113,6 @@ export default async function DetalhesVistoriaPage({ params }: { params: Promise
                 <div className="bg-white p-6 md:p-8 rounded-xl shadow-sm border border-gray-200">
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-xl font-bold text-gray-900">Cômodos Vistoriados</h2>
-                        {/* O botão que abre o modal fica aqui */}
-                        {!isFinalizada && <ModalAdicionarComodo vistoriaId={vistoriaId} />}
                     </div>
                     
                     {comodos && comodos.length > 0 ? (

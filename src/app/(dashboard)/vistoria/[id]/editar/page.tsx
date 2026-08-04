@@ -31,7 +31,7 @@ export default async function EditarVistoriaPage({ params }: { params: Promise<{
         <main className="min-h-screen bg-gray-50 pb-20">
             {/* Header */}
             <header className="bg-white p-4 shadow-sm flex items-center">
-                <a href="/dashboard" className="text-gray-600 mr-4 hover:text-blue-600 transition-colors">
+                <a href={`/vistoria/${vistoria.id}`} className="text-gray-600 mr-4 hover:text-blue-600 transition-colors">
                     ← Voltar
                 </a>
                 <div className="flex-1">
