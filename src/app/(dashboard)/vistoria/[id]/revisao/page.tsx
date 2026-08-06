@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { processarDescricaoIA } from './actions';
 import BotaoGerarPDF from './BotaoGerarPDF';
+import BotaoCompartilhar from '@/components/vistorias/BotaoCompartilhar';
 
 // Next.js 15: params deve ser tipado como Promise
 export default async function RevisaoPage({ params }: { params: Promise<{ id: string }> }) {
@@ -21,6 +22,14 @@ export default async function RevisaoPage({ params }: { params: Promise<{ id: st
     if (!vistoria) {
         redirect('/dashboard');
     }
+
+    // Buscar o perfil do usuário logado (nome e CRECI para exibir no PDF)
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('nome, creci')
+        .eq('id', user?.id)
+        .single();
 
     const isFinalizada = vistoria.status === 'FINALIZADO';
 
@@ -131,7 +140,8 @@ export default async function RevisaoPage({ params }: { params: Promise<{ id: st
                     <Link href={`/vistoria/${vistoriaId}`} className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 text-center transition-colors">
                         {isFinalizada ? 'Voltar aos Detalhes' : 'Voltar e Editar'}
                     </Link>
-                    <BotaoGerarPDF vistoria={vistoria} comodos={comodos || []} />
+                    <BotaoCompartilhar vistoria={vistoria} comodos={comodos || []} />
+                    <BotaoGerarPDF vistoria={vistoria} comodos={comodos || []} profile={profile} />
                 </div>
             </div>
         </main>

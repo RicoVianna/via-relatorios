@@ -1,14 +1,27 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { uploadLogo, updateProfile } from './actions';
+import { uploadLogo, updateProfile, logout } from './actions';
 import Link from 'next/link';
+
+// Formata o telefone enquanto o usuário digita: (00) 00000-0000 ou (00) 0000-0000
+function formatarTelefone(valor: string): string {
+    const digitos = valor.replace(/\D/g, '').slice(0, 11);
+    if (digitos.length === 0) return '';
+    if (digitos.length <= 2) return `(${digitos}`;
+    if (digitos.length <= 6) return `(${digitos.slice(0, 2)}) ${digitos.slice(2)}`;
+    if (digitos.length <= 10) {
+        return `(${digitos.slice(0, 2)}) ${digitos.slice(2, 6)}-${digitos.slice(6)}`;
+    }
+    return `(${digitos.slice(0, 2)}) ${digitos.slice(2, 7)}-${digitos.slice(7)}`;
+}
 
 export default function PerfilPage({ initialProfile }: { initialProfile: any }) {
     const [isPendingLogo, startTransitionLogo] = useTransition();
     const [isPendingProfile, startTransitionProfile] = useTransition();
     const [logoUrl, setLogoUrl] = useState(initialProfile?.logo_url || null);
-    const [message, setMessage] = useState('');
+    const [telefone, setTelefone] = useState(formatarTelefone(initialProfile?.telefone || ''));
+    const [message, setMessage] = useState<{ texto: string; erro: boolean } | null>(null);
 
     const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -19,11 +32,11 @@ export default function PerfilPage({ initialProfile }: { initialProfile: any }) 
                 const result = await uploadLogo(formData);
                 if (result.success) {
                     setLogoUrl(result.url);
-                    setMessage('Logo atualizada com sucesso!');
+                    setMessage({ texto: 'Logo atualizada com sucesso!', erro: false });
                 } else {
-                    setMessage(result.error || 'Erro ao atualizar logo.');
+                    setMessage({ texto: result.error || 'Erro ao atualizar logo.', erro: true });
                 }
-                setTimeout(() => setMessage(''), 3000);
+                setTimeout(() => setMessage(null), 3000);
             });
         }
     };
@@ -40,8 +53,8 @@ export default function PerfilPage({ initialProfile }: { initialProfile: any }) 
 
             <div className="p-4 space-y-6">
                 {message && (
-                    <div className="bg-blue-50 text-blue-700 p-3 rounded-md text-sm text-center">
-                        {message}
+                    <div className={`p-4 rounded-lg text-base font-medium text-center shadow-sm ${message.erro ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                        {message.texto}
                     </div>
                 )}
 
@@ -67,13 +80,29 @@ export default function PerfilPage({ initialProfile }: { initialProfile: any }) 
                 </div>
 
                 {/* Formulário de Dados */}
-                <form action={updateProfile} className="space-y-4">
+                <form
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        const formData = new FormData(e.currentTarget);
+                        startTransitionProfile(async () => {
+                            const resultado = await updateProfile(formData);
+                            if (resultado?.error) {
+                                setMessage({ texto: resultado.error, erro: true });
+                            } else {
+                                setMessage({ texto: 'Dados salvos com sucesso!', erro: false });
+                            }
+                            setTimeout(() => setMessage(null), 3000);
+                        });
+                    }}
+                    className="space-y-4"
+                >
+
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Nome Completo</label>
                         <input
                             type="text"
-                            name="nome_completo"
-                            defaultValue={initialProfile?.nome_completo || ''}
+                            name="nome"
+                            defaultValue={initialProfile?.nome || ''}
                             required
                             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />
@@ -94,7 +123,9 @@ export default function PerfilPage({ initialProfile }: { initialProfile: any }) 
                         <input
                             type="tel"
                             name="telefone"
-                            defaultValue={initialProfile?.telefone || ''}
+                            value={telefone}
+                            placeholder="(11) 98765-4321"
+                            onChange={(e) => setTelefone(formatarTelefone(e.target.value))}
                             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />
                     </div>
@@ -129,6 +160,16 @@ export default function PerfilPage({ initialProfile }: { initialProfile: any }) 
                         Fazer Upgrade para Pro (R$ 39,90/mês)
                     </button>
                 </div>
+
+                {/* Botão de Logout */}
+                <form action={logout} className="pt-4 border-t border-gray-200">
+                    <button
+                        type="submit"
+                        className="w-full rounded-md bg-red-600 py-3 text-sm font-semibold text-white shadow-sm hover:bg-red-700 transition-colors"
+                    >
+                        Sair da Conta
+                    </button>
+                </form>
             </div>
         </main>
     );

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { reabrirVistoria } from './actions';
+import BotaoCompartilhar from '@/components/vistorias/BotaoCompartilhar';
 
 export default function ListaVistorias({ vistorias, profile }: { vistorias: any[] | null, profile: any }) {
     const router = useRouter();
@@ -94,7 +95,14 @@ export default function ListaVistorias({ vistorias, profile }: { vistorias: any[
                                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${v.status === 'RASCUNHO' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
                                             {v.status === 'RASCUNHO' ? 'EM ANDAMENTO' : v.status === 'FINALIZADO' ? 'FINALIZADA' : v.status}
                                         </span>
+                                        {/* Ícone de compartilhamento: só aparece em vistorias finalizadas.
+                                            A div com preventDefault evita que o clique no ícone navegue para a vistoria
+                                            (já que o card inteiro é um Link). */}
+                                        <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                                            <BotaoCompartilhar vistoria={v} comodos={v.comodos || []} variante="icone" />
+                                        </div>
                                     </div>
+                                    
                                     <div className="space-y-1">
                                         <p className="text-sm text-gray-900 font-medium truncate">
                                             <span className="text-gray-500 font-normal">Proprietário:</span> {v.nome_cliente}

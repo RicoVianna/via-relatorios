@@ -22,7 +22,7 @@ const styles = StyleSheet.create({
     footer: { position: 'absolute', bottom: 30, left: 30, right: 30, textAlign: 'center', color: '#9CA3AF', fontSize: 9, borderTop: '1pt solid #E5E7EB', paddingTop: 10 }
 });
 
-export default function DocumentoPDF({ vistoria, comodos }: { vistoria: any; comodos: any[] }) {
+export default function DocumentoPDF({ vistoria, comodos, profile }: { vistoria: any; comodos: any[]; profile?: any }) {
     const tipoFormatado = vistoria.tipo === 'ENTRADA' ? 'Entrada' : vistoria.tipo === 'SAIDA' ? 'Saída' : 'Captação';
 
     return (
@@ -68,6 +68,23 @@ export default function DocumentoPDF({ vistoria, comodos }: { vistoria: any; com
                         <Text style={styles.value}>{new Date(vistoria.data_vistoria).toLocaleDateString('pt-BR')}</Text>
                     </View>
                 </View>
+
+                {/* Corretor Responsável */}
+                {profile && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Corretor Responsável</Text>
+                        <View style={styles.row}>
+                            <Text style={styles.label}>Nome:</Text>
+                            <Text style={styles.value}>{profile.nome || 'Não informado'}</Text>
+                        </View>
+                        {profile.creci && (
+                            <View style={styles.row}>
+                                <Text style={styles.label}>CRECI:</Text>
+                                <Text style={styles.value}>{profile.creci}</Text>
+                            </View>
+                        )}
+                    </View>
+                )}
 
                 {/* Cômodos */}
                 <View style={styles.section}>

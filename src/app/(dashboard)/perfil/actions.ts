@@ -53,7 +53,7 @@ export async function updateProfile(formData: FormData) {
         return { error: 'Usuário não autenticado.' };
     }
 
-    const nome_completo = formData.get('nome_completo') as string;
+    const nome = formData.get('nome') as string;
     const creci = formData.get('creci') as string;
     const telefone = formData.get('telefone') as string;
     const email = formData.get('email') as string;
@@ -61,17 +61,22 @@ export async function updateProfile(formData: FormData) {
     const { error } = await supabase
         .from('profiles')
         .update({
-            nome_completo,
+            nome,
             creci,
             telefone,
             email,
-            updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
 
     if (error) {
+        console.error('Erro ao atualizar perfil:', error);
         return { error: 'Erro ao atualizar o perfil.' };
     }
 
     return { success: true };
+}
+
+export async function logout() {
+    const supabase = await createClient();
+    await supabase.auth.signOut();
 }

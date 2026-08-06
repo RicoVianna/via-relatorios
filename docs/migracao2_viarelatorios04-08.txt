@@ -1,0 +1,1007 @@
+--- INÍCIO DA MIGRAÇÃO - PROJETO VIARELATORIOS ---
+
+Olá! Estou migrando este projeto de outra aba para continuar o desenvolvimento. Leia atentamente este resumo para entender o contexto, a estrutura de arquivos, o estado atual do código e as regras de trabalho.
+
+### 1. VISÃO GERAL DO PROJETO
+- **Nome:** ViaRelatorios (Sistema de Vistorias Imobiliárias com IA).
+- **Stack:** Next.js 15 (App Router, Turbopack), TypeScript, Tailwind CSS, Supabase (Auth + Database), Google Gemini (IA).
+- **Objetivo:** Corretores criam vistorias, descrevem cômodos de forma estruturada, e a IA reescreve as descrições em linguagem técnica de laudo.
+
+### 2. MAPA DA ESTRUTURA DE PASTAS (CRÍTICO)
+Use este mapa para saber exatamente qual arquivo editar. Atenção aos arquivos marcados com [ATUALIZADO], pois tiveram mudanças significativas na sessão anterior:
+- `src/app/(dashboard)/dashboard/`
+  - `page.tsx` (Server Component)
+  - `ListaVistorias.tsx` (Client Component)
+- `src/app/(dashboard)/vistoria/nova/`
+  - `page.tsx` (Formulário de criação)
+  - `actions.ts` (Função `criarVistoria`)
+- `src/app/(dashboard)/vistoria/[id]/`
+  - `page.tsx` [ATUALIZADO] (Tela de detalhes, exibe dados e lista de cômodos)
+  - `actions.ts` [ATUALIZADO] (Funções `adicionarComodo`, `atualizarComodo` e `finalizarVistoria`)
+  - `ModalAdicionarComodo.tsx` [ATUALIZADO] (Client Component. Agora é controlado via props `aberto` e `onClose` para evitar aninhamento de forms)
+- `src/app/(dashboard)/vistoria/[id]/editar/`
+  - `page.tsx` [ATUALIZADO] (Server Component que busca dados e passa para o Client)
+  - `EditarVistoriaClient.tsx` [ATUALIZADO] (Formulário de edição. Agora contém a seção de cômodos e o gatilho do modal no local correto, fora do <form> principal)
+- `src/app/(dashboard)/vistoria/[id]/revisao/`
+  - `page.tsx` [ATUALIZADO] (Tela de revisão e gatilho para IA/PDF)
+- `src/lib/`
+  - `supabase/server.ts` e `client.ts`
+  - `gemini.ts`
+
+### 3. ESTADO ATUAL DO BANCO DE DADOS (SUPABASE)
+- **Tabela `profiles`:** id, nome, email.
+- **Tabela `vistorias`:** id, user_id, tipo, nome_cliente, endereco_cep, endereco_rua, endereco_bairro, endereco_cidade, endereco_numero, endereco_complemento, data_vistoria, status (RASCUNHO/FINALIZADO), criado_em.
+- **Tabela `comodos`:** id, vistoria_id, nome_comodo, descricao_bruta, descricao_processada_ia, ordem, criado_em. 
+  *NOTA CRÍTICA:* A tabela `comodos` NÃO possui colunas separadas para `estado_conservacao`, `item_vistoriado` ou `observacao`. Esses dados são salvos concatenados dentro do campo `descricao_bruta` (ex: "Cômodo: Sala. Item: Piso. Estado: BOM. Obs: Risco.").
+*NOTA DE VALIDAÇÃO (Documento base 01/08/2026):* A estrutura original da tabela 'comodos' foi confirmada. Ela possui apenas 'descricao_bruta' e 'descricao_processada_ia'. Não existem colunas nativas para 'estado', 'item' ou 'observacao'. Por isso, usamos a função 'parseDescricaoBruta' no front-end para extrair e salvar esses dados concatenados dentro de 'descricao_bruta'.
+
+### 4. FUNCIONALIDADES E LÓGICAS IMPLEMENTADAS RECENTEMENTE (MUITO IMPORTANTE)
+1. **Edição de Cômodos:** Foi implementada a capacidade de editar um cômodo existente. O modal usa a função `parseDescricaoBruta` para ler o texto do banco e preencher os selects corretamente.
+2. **Correção de Hydration Error:** O `<ModalAdicionarComodo>` foi movido para fora do `<form>` principal de edição. Ele é renderizado condicionalmente (`if (!modalAberto) return null;`) e controlado pelas props `aberto` e `onClose` vindas do componente pai (`EditarVistoriaClient.tsx`). **NUNCA aninhe este modal dentro de outro form.**
+3. **Revalidação de Rotas:** As funções `adicionarComodo` e `atualizarComodo` no `actions.ts` agora chamam `revalidatePath` para ambas as rotas (`/vistoria/[id]` e `/vistoria/[id]/editar`) para garantir que a UI atualize sem precisar de F5.
+
+### 5. REGRAS DE OURO PARA ESTA CONVERSA (LEIA COM ATENÇÃO)
+1. **UM PASSO POR MENSAGEM:** Nunca dê 3 ou 4 instruções de uma vez. Dê uma instrução clara, espere eu confirmar que fiz, e só então passe a próxima.
+2. **NÃO CHUTE NOMES DE ARQUIVOS:** Se for para editar um `page.tsx`, me diga o caminho completo (ex: `src/app/(dashboard)/vistoria/[id]/page.tsx`).
+3. **SEMPRE QUE PEDIR PARA COLAR CÓDIGO:** Me diga exatamente o que apagar e o que colar. Mostre o bloco antigo e o novo.
+4. **NEXT.JS 15:** Lembre-se que `params` agora é uma Promise e precisa de `await`. Server Components não podem ter `'use client'`.
+5. **TEXTO "RASCUNHO":** Em toda a interface, substitua "Rascunho" por "Em Andamento" e "Finalizado" por "Finalizada".
+
+---
+### 6. CÓDIGO ATUALIZADO DOS ARQUIVOS MODIFICADOS
+(Abaixo estão as versões exatas e funcionais dos arquivos que foram alterados na sessão anterior. Use-os como referência absoluta).
+
+<ARQUIVO: src/app/(dashboard)/vistoria/[id]/ModalAdicionarComodo.tsx>
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { adicionarComodo, atualizarComodo } from './actions';
+
+// Lista expandida para cobrir a maioria dos cenários
+const OPCOES_COMODOS = [
+    'Sala de Estar', 'Sala de Jantar', 'Cozinha', 'Quarto 1 (Principal)', 'Quarto 2', 'Quarto 3', 
+    'Suíte Master', 'Banheiro da Suíte', 'Banheiro Social', 'Lavabo', 'Corredor Interno', 
+    'Corredor Externo', 'Hall de Entrada', 'Escritório', 'Quarto de Empregada', 'Banheiro de Empregada',
+    'Área de Serviço', 'Lavanderia', 'Despensa', 'Garagem', 'Varanda', 'Sacada', 'Terraço', 
+    'Área Gourmet', 'Churrasqueira', 'Jardim', 'Piscina', 'Outro (especificar)'
+];
+
+const OPCOES_ITENS = [
+    'Piso', 'Paredes', 'Teto', 'Portas', 'Janelas', 'Rodapés', 'Sancas', 
+    'Instalações Elétricas (Tomadas/Interruptores)', 'Instalações Hidráulicas (Torneiras/Registro)', 
+    'Luminárias', 'Vidros', 'Fechaduras', 'Móveis Planejados', 'Outros'
+];
+
+// FUNÇÃO NOVA: Extrai os dados do texto que está no banco
+function parseDescricaoBruta(descricao: string | null) {
+    if (!descricao) return { item: '', estado: 'BOM', observacao: '' };
+    
+    const itemMatch = descricao.match(/Item:\s*([^\.]+)\./);
+    const item = itemMatch ? itemMatch[1].trim() : '';
+    
+    const estadoMatch = descricao.match(/Estado de conservação:\s*([^\.]+)\./);
+    const estado = estadoMatch ? estadoMatch[1].trim() : 'BOM';
+    
+    const obsMatch = descricao.match(/Observações específicas:\s*(.+)/);
+    const observacao = obsMatch ? obsMatch[1].trim() : '';
+    
+    return { item, estado, observacao };
+}
+
+export default function ModalAdicionarComodo({
+    vistoriaId,
+    comodoParaEditar,
+    aberto,
+    onClose
+}: {
+    vistoriaId: string;
+    comodoParaEditar?: any;
+    aberto: boolean; 
+    onClose?: () => void;
+}) {
+    const [modalAberto, setModalAberto] = useState(aberto);
+
+    useEffect(() => {
+        setModalAberto(aberto);
+    }, [aberto]);
+    
+    const [isLoading, setIsLoading] = useState(false);
+    const [erro, setErro] = useState('');
+    const router = useRouter();
+    
+    // Se estiver editando, usa os dados do cômodo. Se não, começa vazio.
+    const [comodo, setComodo] = useState(comodoParaEditar?.nome_comodo || '');
+    const [comodoCustomizado, setComodoCustomizado] = useState(comodoParaEditar?.nome_comodo_customizado || '');
+    const [item, setItem] = useState(comodoParaEditar?.item_vistoriado || '');
+    const [estado, setEstado] = useState(comodoParaEditar?.estado_conservacao || 'BOM');
+    const [observacao, setObservacao] = useState(comodoParaEditar?.observacao || '');
+
+        // Quando o cômodo para editar muda: abre o modal e preenche os campos
+    // Quando o cômodo para editar muda: abre o modal e preenche os campos
+    useEffect(() => {
+        if (comodoParaEditar) {
+            setModalAberto(true);
+            setComodo(comodoParaEditar.nome_comodo || '');
+            setComodoCustomizado(comodoParaEditar.nome_comodo_customizado || '');
+            
+            // Usa a função nova para preencher os campos que estavam no texto
+            const { item, estado, observacao } = parseDescricaoBruta(comodoParaEditar.descricao_bruta);
+            setItem(item);
+            setEstado(estado);
+            setObservacao(observacao);
+        } else {
+            setModalAberto(false);
+            setComodo('');
+            setComodoCustomizado('');
+            setItem('');
+            setEstado('BOM');
+            setObservacao('');
+        }
+    }, [comodoParaEditar?.id]);
+
+    // Função para limpar o formulário quando fechar o modal
+    const resetForm = () => {
+        setComodo('');
+        setComodoCustomizado('');
+        setItem('');
+        setEstado('BOM');
+        setObservacao('');
+        setErro('');
+        setModalAberto(false);
+        if (onClose) onClose();
+    };
+
+    async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+        setIsLoading(true);
+        setErro('');
+        
+        try {
+            const formData = new FormData();
+            formData.append('vistoria_id', vistoriaId);
+            
+            // SE FOR EDIÇÃO: envia o ID do cômodo para o servidor saber qual atualizar
+            if (comodoParaEditar) {
+                formData.append('comodo_id', comodoParaEditar.id);
+            }
+
+            // Define o nome final do cômodo (o selecionado ou o digitado)
+            const nomeFinalDoComodo = comodo === 'Outro (especificar)' ? comodoCustomizado : comodo;
+            formData.append('nome_comodo', nomeFinalDoComodo);
+            
+            // NOVAS LINHAS: Enviam os dados separados para o banco salvar corretamente
+            formData.append('estado_conservacao', estado);
+            formData.append('item_vistoriado', item);
+            formData.append('observacao', observacao);
+            
+            // Monta a descrição estruturada para a IA
+            const descricaoEstruturada = `Cômodo: ${nomeFinalDoComodo}. Item: ${item || 'Nenhum específico'}. Estado de conservação: ${estado}. Observações específicas: ${observacao || 'Sem observações adicionais.'}`;
+            formData.append('descricao_bruta', descricaoEstruturada);
+
+            // DECISÃO: Se existir comodoParaEditar, atualiza. Se não, cria um novo.
+            if (comodoParaEditar) {
+                await atualizarComodo(formData);
+            } else {
+                await adicionarComodo(formData);
+            }
+            
+            // Reseta o formulário e fecha o modal
+            resetForm();
+            
+            // Atualiza a tela para mostrar a alteração imediatamente
+            router.refresh(); 
+            
+        } catch (error: any) {
+            console.error(error);
+            setErro(error.message || 'Erro ao salvar. Tente novamente.');
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    // Se não estiver aberto, não renderiza nada na tela
+    if (!modalAberto) return null;
+
+        // Se não estiver aberto, não renderiza nada na tela
+    if (!modalAberto) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden max-h-[90vh] overflow-y-auto">
+                <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center sticky top-0">
+                    <h3 className="text-lg font-bold text-gray-900">
+                        {comodoParaEditar ? 'Editar Item da Vistoria' : 'Adicionar Item à Vistoria'}
+                    </h3>
+                    <button 
+                        type="button" 
+                        onClick={resetForm} 
+                        className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+                    >
+                        &times;
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Selecione o Cômodo *</label>
+                        <select 
+                            required 
+                            value={comodo} 
+                            onChange={(e) => setComodo(e.target.value)} 
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                        >
+                            <option value="">-- Selecione --</option>
+                            {OPCOES_COMODOS.map(op => <option key={op} value={op}>{op}</option>)}
+                        </select>
+                    </div>
+
+                    {comodo === 'Outro (especificar)' && (
+                        <div className="animate-fade-in">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Qual é o nome deste cômodo/área? *</label>
+                            <input 
+                                type="text" 
+                                required
+                                value={comodoCustomizado}
+                                onChange={(e) => setComodoCustomizado(e.target.value)}
+                                placeholder="Ex: Corredor do 2º andar, Área de Churrasqueira..."
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                    )}
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Estado de Conservação <span className="text-red-500">*</span></label>
+                        <select 
+                            required 
+                            value={estado} 
+                            onChange={(e) => setEstado(e.target.value)} 
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                        >
+                            <option value="BOM">Bom (Sem avarias, limpo, funcional)</option>
+                            <option value="REGULAR">Regular (Desgaste natural, pequenas marcas, sujeira leve)</option>
+                            <option value="RUIM">Ruim (Avarias, quebrado, sujo, requer reparo/troca)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            O que está sendo vistoriado? {estado !== 'BOM' && <span className="text-red-500">*</span>}
+                        </label>
+                        <select 
+                            required={estado !== 'BOM'} 
+                            value={item} 
+                            onChange={(e) => setItem(e.target.value)} 
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+                        >
+                            <option value="">
+                                {estado === 'BOM' ? '-- Nenhum problema específico --' : '-- Selecione o Item com avaria --'}
+                            </option>
+                            {OPCOES_ITENS.map(op => <option key={op} value={op}>{op}</option>)}
+                        </select>
+                        {estado === 'BOM' && (
+                            <p className="text-xs text-green-600 mt-1">Como o estado é "Bom", este campo é opcional.</p>
+                        )}
+                        {estado !== 'BOM' && (
+                            <p className="text-xs text-gray-500 mt-1">Selecione o item específico que apresenta problema.</p>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Observações Específicas (Opcional)</label>
+                        <textarea 
+                            value={observacao} 
+                            onChange={(e) => setObservacao(e.target.value)} 
+                            rows={3} 
+                            placeholder="Ex: Risco profundo no centro do piso, tinta descascando perto da janela..."
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+
+                    <div className="pt-4 border-t border-gray-200 flex gap-3">
+                        <button 
+                            type="button" 
+                            onClick={resetForm}
+                            className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                        <button 
+                            type="submit" 
+                            disabled={isLoading}
+                            className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-sm"
+                        >
+                            {isLoading ? 'Salvando...' : (comodoParaEditar ? 'Atualizar Cômodo' : 'Salvar Item')}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+</ARQUIVO>
+
+<ARQUIVO: src/app/(dashboard)/vistoria/[id]/editar/EditarVistoriaClient.tsx>
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { atualizarDetalhesVistoria } from './actions';
+import ModalAdicionarComodo from '../ModalAdicionarComodo';
+
+export default function EditarVistoriaClient({ vistoria, comodos }: { vistoria: any, comodos?: any[] }) {
+    const router = useRouter();
+    const [isLoading, setIsLoading] = useState(false);
+    const [erro, setErro] = useState('');
+    const [comodoParaEditar, setComodoParaEditar] = useState<any>(null);
+    
+    // Inicializa os campos com os dados que já existem no banco
+    const [cep, setCep] = useState(vistoria.endereco_cep || '');
+    const [buscandoCep, setBuscandoCep] = useState(false);
+    const [rua, setRua] = useState(vistoria.endereco_rua || '');
+    const [bairro, setBairro] = useState(vistoria.endereco_bairro || '');
+    const [cidade, setCidade] = useState(vistoria.endereco_cidade || '');
+
+    const [modalComodoAberto, setModalComodoAberto] = useState(false);
+
+    // Lógica do CEP (igual à tela de criação)
+    async function buscarEnderecoPorCep(cepDigitado: string) {
+        const cepLimpo = cepDigitado.replace(/\D/g, '');
+        if (cepLimpo.length !== 8) return;
+
+        setBuscandoCep(true);
+        try {
+            const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+            const data = await response.json();
+            if (!data.erro) {
+                setRua(data.logradouro || '');
+                setBairro(data.bairro || '');
+                setCidade(`${data.localidade} - ${data.uf}`);
+            }
+        } catch (error) {
+            console.error('Erro ao buscar CEP:', error);
+        } finally {
+            setBuscandoCep(false);
+        }
+    }
+
+    function formatarCep(value: string) {
+        return value.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2').replace(/(-\d{3})\d+?$/, '$1');
+    }
+
+    async function handleSubmit(formData: FormData) {
+        setIsLoading(true);
+        setErro('');
+        try {
+            await atualizarDetalhesVistoria(formData);
+        } catch (err: any) {
+            setErro(err.message);
+            setIsLoading(false);
+        }
+    }
+
+    return (
+        <div className="p-4 md:p-8">
+            <div className="max-w-2xl mx-auto bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <h1 className="text-2xl font-bold text-gray-900 mb-6">Editar Dados da Vistoria</h1>
+
+                {erro && (
+                    <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm border border-red-200">
+                        {erro}
+                    </div>
+                )}
+
+                <form action={handleSubmit} className="space-y-4">
+                    {/* ID Oculto para saber qual vistoria atualizar */}
+                    <input type="hidden" name="id" value={vistoria.id} />
+
+                    {/* Tipo e Data */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
+                            <select name="tipo" required defaultValue={vistoria.tipo} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white">
+                                <option value="ENTRADA">Entrada</option>
+                                <option value="SAIDA">Saída</option>
+                                <option value="CAPTACAO">Captação</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
+                            <input type="date" name="data_vistoria" required defaultValue={vistoria.data_vistoria} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                        </div>
+                    </div>
+
+                    {/* Cliente e Locatário */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Proprietário/Cliente *</label>
+                            <input type="text" name="nome_cliente" required defaultValue={vistoria.nome_cliente} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Locatário/Inquilino (Opcional)</label>
+                            <input type="text" name="nome_locatario" defaultValue={vistoria.nome_locatario || ''} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                        </div>
+                    </div>
+
+                    {/* Endereço */}
+                    <div className="border-t pt-4 mt-4">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-3">Endereço do Imóvel</h3>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="md:col-span-1">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">CEP *</label>
+                                <input type="text" name="endereco_cep" value={cep} required placeholder="00000-000" maxLength={9} onChange={(e) => setCep(formatarCep(e.target.value))} onBlur={() => buscarEnderecoPorCep(cep)} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                                {buscandoCep && <p className="text-xs text-blue-500 mt-1">Buscando...</p>}
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Rua *</label>
+                                <input type="text" name="endereco_rua" value={rua} required onChange={(e) => setRua(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                            <div className="md:col-span-1">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Bairro *</label>
+                                <input type="text" name="endereco_bairro" value={bairro} required onChange={(e) => setBairro(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Cidade/UF *</label>
+                                <input type="text" name="endereco_cidade" value={cidade} required onChange={(e) => setCidade(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Número *</label>
+                                <input type="text" name="endereco_numero" required defaultValue={vistoria.endereco_numero} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Complemento</label>
+                                <input type="text" name="endereco_complemento" defaultValue={vistoria.endereco_complemento || ''} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Seção de Cômodos dentro da Edição */}
+                    <div className="border-t border-gray-200 pt-6 mt-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-gray-800">
+                                Cômodos Vistoriados ({comodos?.length || 0})
+                            </h3>
+                            
+                            {/* BOTÃO NO LUGAR CERTO, FORA DO FORMULÁRIO PRINCIPAL */}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setComodoParaEditar(null); // Garante que é um novo cômodo
+                                    setModalComodoAberto(true); // Abre o modal
+                                }}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm"
+                            >
+                                + Adicionar Cômodo
+                            </button>
+                        </div>
+
+                        {/* Lista visual dos cômodos (mantenha o seu código de lista aqui embaixo) */}
+                        {comodos && comodos.length > 0 ? (
+                            <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                                {comodos.map((comodo: any) => (
+                                    <div key={comodo.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm flex justify-between items-start gap-3">
+                                        <div className="flex-1">
+                                            <div className="font-semibold text-gray-900 flex justify-between mb-1">
+                                                <span>{comodo.nome_comodo}</span>
+                                                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                                    comodo.estado_conservacao === 'BOM' ? 'bg-green-100 text-green-700' :
+                                                    comodo.estado_conservacao === 'REGULAR' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+                                                }`}>
+                                                    {comodo.estado_conservacao || 'N/A'}
+                                                </span>
+                                            </div>
+                                            <div className="text-gray-600 line-clamp-2">
+                                                {comodo.descricao_processada_ia || comodo.descricao_bruta || "Sem descrição"}
+                                            </div>
+                                        </div>
+                                        
+                                        {/* Botão de Editar (Lápis) */}
+                                        <button
+                                            type="button"
+                                            onClick={() => setComodoParaEditar(comodo)}
+                                            className="text-blue-600 hover:text-blue-800 p-1.5 hover:bg-blue-100 rounded-lg transition-colors flex-shrink-0"
+                                            title="Editar este cômodo"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-gray-500 italic bg-gray-50 p-3 rounded-lg border border-dashed border-gray-300 text-center">
+                                Nenhum cômodo adicionado ainda. Use o botão acima.
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Botões */}
+                    <div className="flex gap-3 pt-6">
+                        <button type="button" onClick={() => router.back()} className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50">Cancelar</button>
+                        <button type="submit" disabled={isLoading} className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50">
+                            {isLoading ? 'Salvando...' : 'Salvar Alterações'}
+                        </button>
+                    </div>
+                </form>
+                
+                {/* O MODAL FICA AQUI (FORA DO FORM), MAS SÓ APARECE QUANDO 'aberto' FOR TRUE */}
+                <ModalAdicionarComodo 
+                    vistoriaId={vistoria.id} 
+                    comodoParaEditar={comodoParaEditar} 
+                    aberto={modalComodoAberto}
+                    onClose={() => {
+                        setModalComodoAberto(false);
+                        setComodoParaEditar(null);
+                    }} 
+                />
+            </div>
+        </div>
+    );
+}
+
+
+
+</ARQUIVO>
+
+<ARQUIVO: src/app/(dashboard)/vistoria/[id]/actions.tsx>
+'use server';
+
+import { createClient } from '@/lib/supabase/server';
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+
+export async function adicionarComodo(formData: FormData) {
+    const supabase = await createClient();
+
+    // 1. Verificar autenticação
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        throw new Error('Não autorizado');
+    }
+
+    // 2. Pegar os dados do formulário
+    const vistoriaId = formData.get('vistoria_id') as string;
+    const nomeComodo = formData.get('nome_comodo') as string;
+    const descricaoBruta = formData.get('descricao_bruta') as string;
+
+    // 3. Validar dados
+    if (!vistoriaId || !nomeComodo) {
+        throw new Error('Dados inválidos');
+    }
+
+    // 4. Salvar no banco de dados
+    const { error } = await supabase
+        .from('comodos')
+        .insert({
+            vistoria_id: vistoriaId,
+            nome_comodo: nomeComodo,
+            descricao_bruta: descricaoBruta || '',
+            ordem: 0 // Por enquanto, ordem fixa
+        });
+
+    if (error) {
+        console.error('Erro ao adicionar cômodo:', error);
+        throw new Error('Não foi possível salvar o cômodo. Tente novamente.');
+    }
+
+    // 5. Revalidar a página para mostrar o novo cômodo
+    revalidatePath(`/vistoria/${vistoriaId}`);
+    revalidatePath(`/vistoria/${vistoriaId}/editar`);
+}
+
+export async function atualizarComodo(formData: FormData) {
+    const supabase = await createClient();
+    
+    // 1. Verificar autenticação
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        throw new Error('Não autorizado');
+    }
+
+    // 2. Pegar APENAS os dados que existem na tabela 'comodos'
+    const comodo_id = formData.get('comodo_id') as string;
+    const vistoria_id = formData.get('vistoria_id') as string;
+    const nome_comodo = formData.get('nome_comodo') as string;
+    const descricao_bruta = formData.get('descricao_bruta') as string;
+
+    // 3. Atualizar no banco (removemos as colunas que não existem)
+    const { error } = await supabase
+        .from('comodos')
+        .update({
+            nome_comodo,
+            descricao_bruta
+        })
+        .eq('id', comodo_id)
+        .eq('vistoria_id', vistoria_id);
+
+    if (error) {
+        console.error('Erro ao atualizar cômodo:', error);
+        throw new Error('Erro ao atualizar o cômodo: ' + error.message);
+    }
+
+    // 4. Forçar a tela a atualizar visualmente
+    revalidatePath(`/vistoria/${vistoria_id}/editar`);
+    revalidatePath(`/vistoria/${vistoria_id}`);
+}
+
+export async function finalizarVistoria(vistoriaId: string) {
+    const supabase = await createClient();
+
+    const { error } = await supabase
+        .from('vistorias')
+        .update({ status: 'FINALIZADO' })
+        .eq('id', vistoriaId);
+
+    if (error) {
+        console.error('Erro ao finalizar vistoria:', error);
+        throw new Error('Não foi possível finalizar a vistoria.');
+    }
+
+    revalidatePath(`/vistoria/${vistoriaId}`);
+    revalidatePath('/dashboard'); // Atualiza o dashboard para mover o card
+    redirect('/dashboard');
+}
+</ARQUIVO>
+
+<ARQUIVO: src/app/(dashboard)/vistoria/[id]/editar/page.tsx>
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
+import EditarVistoriaClient from './EditarVistoriaClient';
+
+// Next.js 15: params deve ser tipado como Promise
+export default async function EditarVistoriaPage({ params }: { params: Promise<{ id: string }> }) {
+    const supabase = await createClient();
+    
+    // Desempacotar o params com await
+    const { id: vistoriaId } = await params;
+
+    // Buscar dados da vistoria
+    const { data: vistoria, error } = await supabase
+        .from('vistorias')
+        .select('*')
+        .eq('id', vistoriaId)
+        .single();
+
+    if (error || !vistoria) {
+        redirect('/dashboard');
+    }
+
+    // Buscar cômodos da vistoria
+    const { data: comodos } = await supabase
+        .from('comodos')
+        .select('*')
+        .eq('vistoria_id', vistoriaId)
+        .order('ordem', { ascending: true });
+
+    return (
+        <main className="min-h-screen bg-gray-50 pb-20">
+            {/* Header */}
+            <header className="bg-white p-4 shadow-sm flex items-center">
+                <a href={`/vistoria/${vistoria.id}`} className="text-gray-600 mr-4 hover:text-blue-600 transition-colors">
+                    ← Voltar
+                </a>
+                <div className="flex-1">
+                    <h1 className="text-lg font-bold text-gray-900">Editar Vistoria</h1>
+                    <p className="text-xs text-gray-500 truncate">{vistoria.endereco_rua}, {vistoria.endereco_numero}</p>
+                </div>
+            </header>
+
+            {/* Componente Cliente Interativo */}
+            <EditarVistoriaClient vistoria={vistoria} comodos={comodos || []} />
+        </main>
+    );
+}
+</ARQUIVO>
+
+<ARQUIVO: src/app/(dashboard)/vistoria/[id]/page.tsx>
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import ModalAdicionarComodo from './ModalAdicionarComodo';
+import { finalizarVistoria } from './actions';
+import HistoricoModal from './HistoricoModal';
+
+export default async function DetalhesVistoriaPage({ params }: { params: Promise<{ id: string }> }) {
+    const supabase = await createClient();
+    const { id: vistoriaId } = await params;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) redirect('/login');
+
+    const { data: vistoria } = await supabase.from('vistorias').select('*').eq('id', vistoriaId).eq('user_id', user.id).single();
+    if (!vistoria) redirect('/dashboard');
+
+    const { data: comodos } = await supabase.from('comodos').select('*').eq('vistoria_id', vistoriaId).order('criado_em', { ascending: true });
+
+        const { data: historico } = await supabase
+        .from('historico_alteracoes')
+        .select('*')
+        .eq('vistoria_id', vistoriaId)
+        .order('data_hora', { ascending: false });
+
+    const dataFormatada = new Date(vistoria.data_vistoria).toLocaleDateString('pt-BR');
+    const isFinalizada = vistoria.status === 'FINALIZADO';
+
+    return (
+        <main className="min-h-screen bg-gray-50 p-4 md:p-8 relative">
+            {isFinalizada && (
+                <div className="fixed inset-0 bg-gray-900/10 backdrop-blur-[1px] z-40 pointer-events-none flex items-start justify-center pt-20">
+                    <div className="bg-orange-100 border-2 border-orange-400 text-orange-800 px-6 py-3 rounded-lg shadow-lg font-semibold text-sm flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        Vistoria Finalizada - Documento Bloqueado para Edição
+                    </div>
+                </div>
+            )}
+            <div className="max-w-4xl mx-auto">
+                <div className="flex items-center justify-between mb-6">
+                    <Link href="/dashboard" className="relative z-50 flex items-center text-gray-600 hover:text-blue-600 transition-colors font-medium bg-white px-3 py-2 rounded-lg shadow-sm border border-gray-200 hover:border-blue-300">
+                        ← Voltar ao Dashboard
+                    </Link>
+                    <div className="flex items-center gap-4">
+                        <HistoricoModal historico={historico || []} />
+                        <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">{vistoria.status}</span>
+                    </div>
+                </div>
+
+                    <div className="bg-white p-6 md:p-8 rounded-xl shadow-sm border border-gray-200 mb-6">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+                            <div>
+                                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+                                    Vistoria de {vistoria.tipo === 'ENTRADA' ? 'Entrada' : vistoria.tipo === 'SAIDA' ? 'Saída' : 'Captação'}
+                                </h1>
+                                <p className="text-gray-500 mt-1">Realizada em {dataFormatada}</p>
+                            </div>
+                            <div className="mt-4 md:mt-0 flex flex-col sm:flex-row gap-3">
+                                {/* O botão de PDF fica SEMPRE visível, pois é o produto final do serviço */}
+                                <Link 
+                                    href={`/vistoria/${vistoriaId}/revisao`} 
+                                    className="relative z-50 px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors text-center flex items-center justify-center gap-2 shadow-sm"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    {isFinalizada ? 'Visualizar e Baixar PDF' : 'Revisar e Gerar PDF'}
+                                </Link>
+
+                                {/* Botões de edição e finalização só aparecem se NÃO estiver finalizada */}
+                                {!isFinalizada && (
+                                    <>
+                                        <Link href={`/vistoria/${vistoriaId}/editar`} className="relative z-50 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors text-center border border-gray-300">
+                                            Editar Dados
+                                        </Link>
+                                        
+                                        <form action={finalizarVistoria.bind(null, vistoriaId)}>
+                                            <button 
+                                                type="submit" 
+                                                className="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+                                            >
+                                                Finalizar Vistoria
+                                            </button>
+                                        </form>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-gray-100 pt-6">
+                        <div>
+                            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Proprietário / Cliente</h3>
+                            <p className="text-lg font-medium text-gray-900">{vistoria.nome_cliente}</p>
+                        </div>
+                        {vistoria.nome_locatario && (
+                            <div>
+                                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Locatário / Inquilino</h3>
+                                <p className="text-lg font-medium text-gray-900">{vistoria.nome_locatario}</p>
+                            </div>
+                        )}
+                        <div>
+                            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Endereço do Imóvel</h3>
+                            <p className="text-gray-900">{vistoria.endereco_rua}, {vistoria.endereco_numero} {vistoria.endereco_complemento && `- ${vistoria.endereco_complemento}`}</p>
+                            <p className="text-gray-600">{vistoria.endereco_bairro}</p>
+                            <p className="text-gray-600">{vistoria.endereco_cidade} {vistoria.endereco_cep && `- CEP: ${vistoria.endereco_cep}`}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 md:p-8 rounded-xl shadow-sm border border-gray-200">
+                    <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-xl font-bold text-gray-900">Cômodos Vistoriados</h2>
+                    </div>
+                    
+                    {comodos && comodos.length > 0 ? (
+                        <div className="space-y-4 mb-6">
+                            {comodos.map((comodo: any) => (
+                                <div key={comodo.id} className="p-5 bg-white rounded-lg border border-gray-200 shadow-sm">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h3 className="font-bold text-lg text-gray-900">{comodo.nome_comodo}</h3>
+                                        {comodo.descricao_processada_ia && (
+                                            <span className="flex items-center text-xs font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded-full">
+                                                ✨ Otimizado por IA
+                                            </span>
+                                        )}
+                                    </div>
+                                    {comodo.descricao_processada_ia ? (
+                                        <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">{comodo.descricao_processada_ia}</p>
+                                    ) : (
+                                        <p className="text-gray-500 text-sm italic">{comodo.descricao_bruta || "Sem descrição."}</p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 mb-6">
+                            <p>Nenhum cômodo adicionado ainda.</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </main>
+    );
+}
+</ARQUIVO>
+
+<ARQUIVO: src/app/(dashboard)/vistoria/[id]/revisao/page.tsx>
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import { processarDescricaoIA } from './actions';
+import BotaoGerarPDF from './BotaoGerarPDF';
+
+// Next.js 15: params deve ser tipado como Promise
+export default async function RevisaoPage({ params }: { params: Promise<{ id: string }> }) {
+    const supabase = await createClient();
+    
+    // Desempacotar o params com await
+    const { id: vistoriaId } = await params;
+
+    // Buscar dados da vistoria
+    const { data: vistoria } = await supabase
+        .from('vistorias')
+        .select('*')
+        .eq('id', vistoriaId)
+        .single();
+
+    if (!vistoria) {
+        redirect('/dashboard');
+    }
+
+    const isFinalizada = vistoria.status === 'FINALIZADO';
+
+    // Buscar cômodos da vistoria
+    const { data: comodos } = await supabase
+        .from('comodos')
+        .select('*')
+        .eq('vistoria_id', vistoriaId)
+        .order('criado_em', { ascending: true }); // Ajustado para criado_em caso 'ordem' não exista
+
+    return (
+        <main className="min-h-screen bg-gray-50 pb-20">
+            {/* Header com título e botão de voltar condicionais */}
+            <header className="bg-white p-4 shadow-sm flex items-center sticky top-0 z-10">
+                <Link href={`/vistoria/${vistoriaId}`} className="text-gray-600 mr-4 hover:text-blue-600 transition-colors">
+                    ← {isFinalizada ? 'Voltar aos Detalhes' : 'Voltar para Edição'}
+                </Link>
+                <h1 className="text-lg font-bold text-gray-900">
+                    {isFinalizada ? 'Visualização do Laudo (Somente Leitura)' : 'Revisão Final'}
+                </h1>
+            </header>
+
+            <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
+                {/* Resumo da Vistoria */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                    <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Resumo do Imóvel</h2>
+                    <p className="text-gray-900 font-medium">
+                        {vistoria.endereco_rua}, {vistoria.endereco_numero} {vistoria.endereco_complemento && `- ${vistoria.endereco_complemento}`}
+                    </p>
+                    <p className="text-gray-600">{vistoria.endereco_bairro} - {vistoria.endereco_cidade}</p>
+                    
+                    <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <p className="text-xs text-gray-500 uppercase">Tipo de Vistoria</p>
+                            <p className="font-medium text-gray-900">
+                                {vistoria.tipo === 'ENTRADA' ? 'Entrada' : vistoria.tipo === 'SAIDA' ? 'Saída' : 'Captação'}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-gray-500 uppercase">Partes Envolvidas</p>
+                            <p className="text-sm text-gray-800">
+                                <span className="text-gray-500">Proprietário:</span> {vistoria.nome_cliente || 'Não informado'}
+                            </p>
+                            {vistoria.nome_locatario && (
+                                <p className="text-sm text-gray-800 mt-1">
+                                    <span className="text-gray-500">Inquilino:</span> {vistoria.nome_locatario}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Lista de Cômodos para Revisão (COM BLOQUEIOS DE EDIÇÃO) */}
+                <div>
+                    <h2 className="text-lg font-bold text-gray-900 mb-4">
+                        {isFinalizada ? 'Cômodos Vistoriados (Somente Leitura)' : `Cômodos Vistoriados (${comodos?.length || 0})`}
+                    </h2>
+                    <div className="space-y-4">
+                        {comodos?.map((comodo: any) => (
+                            <div key={comodo.id} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="font-bold text-lg text-gray-900">{comodo.nome_comodo}</h3>
+                                    {comodo.descricao_processada_ia && (
+                                        <span className="flex items-center text-xs font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded-full">
+                                            ✨ Otimizado por IA
+                                        </span>
+                                    )}
+                                </div>
+                                
+                                {comodo.descricao_processada_ia ? (
+                                    <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">{comodo.descricao_processada_ia}</p>
+                                ) : (
+                                    <p className="text-gray-500 text-sm italic bg-gray-50 p-3 rounded-lg">{comodo.descricao_bruta || "Sem descrição."}</p>
+                                )}
+
+                                {/* BOTÃO DE IA: SÓ APARECE SE NÃO ESTIVER FINALIZADA E NÃO TIVER IA */}
+                                {!isFinalizada && !comodo.descricao_processada_ia && (
+                                    <form action={processarDescricaoIA} className="mt-4 pt-4 border-t border-gray-100">
+                                        <input type="hidden" name="comodo_id" value={comodo.id} />
+                                        <input type="hidden" name="vistoria_id" value={vistoriaId} />
+                                        <button type="submit" className="flex items-center gap-2 text-sm font-semibold text-purple-600 hover:text-purple-800 transition-colors">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                            </svg>
+                                            Melhorar este texto com IA
+                                        </button>
+                                    </form>
+                                )}
+                            </div>
+                        ))}
+                        
+                        {/* MENSAGEM DE NENHUM CÔMODO: LINK DE EDIÇÃO BLOQUEADO SE FINALIZADA */}
+                        {(!comodos || comodos.length === 0) && (
+                            <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                                <p className="text-gray-500">Nenhum cômodo cadastrado nesta vistoria.</p>
+                                {!isFinalizada && (
+                                    <Link href={`/vistoria/${vistoriaId}/editar`} className="text-blue-600 hover:underline text-sm mt-2 inline-block">
+                                        Adicionar cômodos na edição
+                                    </Link>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Botões de Ação Final */}
+                <div className="pt-6 border-t border-gray-200 flex flex-col sm:flex-row gap-3">
+                    <Link href={`/vistoria/${vistoriaId}`} className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 text-center transition-colors">
+                        {isFinalizada ? 'Voltar aos Detalhes' : 'Voltar e Editar'}
+                    </Link>
+                    <BotaoGerarPDF vistoria={vistoria} comodos={comodos || []} />
+                </div>
+            </div>
+        </main>
+    );
+}
+</ARQUIVO>
+
+### 7. PRÓXIMOS PASSOS E BACKLOG (ROTEIRO PARA A NOVA SESSÃO)
+A funcionalidade de "Adicionar e Editar Cômodos" foi 100% concluída e estabilizada. Os próximos passos, em ordem de prioridade, são:
+
+1. **Excluir Cômodo:** Adicionar um ícone de "Lixeira" ao lado do lápis de edição na lista de cômodos (tanto na tela de edição quanto na de detalhes), permitindo que o usuário remova um cômodo cadastrado por engano.
+2. **Botão "Reabrir Vistoria":** Atualmente, vistorias "Finalizadas" não podem ser editadas. Precisamos criar um botão na tela de detalhes que permita ao usuário reverter o status de "FINALIZADO" para "EM ANDAMENTO" caso ele precise fazer ajustes após a finalização.
+3. **Finalizar Tela de Revisão e PDF:** A rota `/revisao` já existe e tem o botão de IA. O foco agora é desenvolver o layout visual do PDF (usando `@react-pdf/renderer` ou similar) e garantir que o botão de download gere o laudo formatado corretamente.
+4. **Reordenar Cômodos:** O banco de dados já possui a coluna `ordem` na tabela `comodos`. Precisamos criar botões de "Subir" e "Descer" (ou drag-and-drop) na tela de edição para que o usuário possa definir a ordem em que os cômodos aparecerão no PDF final.
+5. **Refinamento da IA:** Garantir que o botão "Melhorar este texto com IA" na tela de revisão tenha um estado de "Carregando..." visual e trate erros de API de forma amigável.
+6. **Upload de Fotos:** (Pós-MVP) Permitir anexar fotos a cada cômodo.
+
+--- FIM DA MIGRAÇÃO ---
+Por favor, confirme que leu e compreendeu todo o contexto, a estrutura e, principalmente, as regras de ouro e as lógicas implementadas. Aguardo suas instruções para o próximo passo.

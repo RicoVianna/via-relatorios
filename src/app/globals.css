@@ -24,3 +24,19 @@ body {
         padding-bottom: env(safe-area-inset-bottom);
     }
 }
+
+/* Transição gradual de entrada das páginas (identidade Via Relatórios) */
+@keyframes vrPageFade {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+main {
+    animation: vrPageFade 0.35s ease-out;
+}

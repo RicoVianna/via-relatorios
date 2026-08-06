@@ -18,10 +18,11 @@ export default async function DashboardPage() {
         .eq('id', user.id)
         .single();
 
-    // 3. Buscar vistorias
+    // 3. Buscar vistorias com os cômodos relacionados (uma única consulta)
+    // O Supabase faz um JOIN automático e retorna os cômodos dentro de cada vistoria
     const { data: vistorias } = await supabase
         .from('vistorias')
-        .select('*')
+        .select('*, comodos(*)')
         .eq('user_id', user.id)
         .order('data_vistoria', { ascending: false });
 

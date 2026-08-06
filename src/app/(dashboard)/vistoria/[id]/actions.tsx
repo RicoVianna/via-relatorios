@@ -78,6 +78,37 @@ export async function atualizarComodo(formData: FormData) {
     revalidatePath(`/vistoria/${vistoria_id}`);
 }
 
+export async function excluirComodo(comodoId: string, vistoriaId: string) {
+    const supabase = await createClient();
+
+    // 1. Verificar autenticação
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        throw new Error('Não autorizado');
+    }
+
+    // 2. Validar dados
+    if (!comodoId || !vistoriaId) {
+        throw new Error('Dados inválidos');
+    }
+
+    // 3. Excluir do banco de dados
+    const { error } = await supabase
+        .from('comodos')
+        .delete()
+        .eq('id', comodoId)
+        .eq('vistoria_id', vistoriaId);
+
+    if (error) {
+        console.error('Erro ao excluir cômodo:', error);
+        throw new Error('Não foi possível excluir o cômodo. Tente novamente.');
+    }
+
+    // 4. Revalidar a página para remover o cômodo visualmente
+    revalidatePath(`/vistoria/${vistoriaId}`);
+    revalidatePath(`/vistoria/${vistoriaId}/editar`);
+}
+
 export async function finalizarVistoria(vistoriaId: string) {
     const supabase = await createClient();
 
@@ -94,4 +125,38 @@ export async function finalizarVistoria(vistoriaId: string) {
     revalidatePath(`/vistoria/${vistoriaId}`);
     revalidatePath('/dashboard'); // Atualiza o dashboard para mover o card
     redirect('/dashboard');
+}
+
+export async function excluirVistoria(vistoriaId: string) {
+    const supabase = await createClient();
+
+    // 1. Verificar autenticação
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        throw new Error('Não autorizado');
+    }
+
+    // 2. Validar dados
+    if (!vistoriaId) {
+        throw new Error('Dados inválidos');
+    }
+
+    // 3. Excluir a vistoria do banco de dados
+    // Os cômodos relacionados também são removidos automaticamente por causa do ON DELETE CASCADE
+    const { error } = await supabase
+        .from('vistorias')
+        .delete()
+        .eq('id', vistoriaId)
+        .eq('user_id', user.id);
+
+    if (error) {
+        console.error('Erro ao excluir vistoria:', error);
+        throw new Error('Não foi possível excluir a vistoria. Tente novamente.');
+    }
+
+    // 4. Atualizar o dashboard
+    revalidatePath('/dashboard');
+    
+    // Retornamos sucesso para o cliente saber que pode redirecionar
+    return { success: true };
 }
