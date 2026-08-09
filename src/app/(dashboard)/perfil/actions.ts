@@ -26,6 +26,7 @@ export async function uploadLogo(formData: FormData) {
         });
 
     if (error) {
+        console.error('[uploadLogo] Erro no storage:', error);
         return { error: 'Erro ao fazer upload da logo.' };
     }
 

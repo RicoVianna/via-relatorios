@@ -1,24 +1,29 @@
 import { login } from './actions';
 import Link from 'next/link';
 import SplashBoasVindas from '@/components/SplashBoasVindas';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export default function LoginPage() {
     return (
         <>
             <SplashBoasVindas />
-            <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-gray-50">
+            <main className="flex min-h-screen flex-col items-center justify-center p-4 relative" style={{ backgroundColor: 'var(--bg)' }}>
+                <div className="absolute top-4 right-4">
+                    <ThemeToggle />
+                </div>
+
                 <div className="w-full max-w-md space-y-8">
                     <div className="text-center">
-                        <h1 className="text-3xl font-bold text-blue-600">ViaRelatórios</h1>
-                        <p className="mt-2 text-sm text-gray-600">
+                        <h1 className="text-3xl font-bold" style={{ color: 'var(--primary)' }}>Via Relatórios</h1>
+                        <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
                             Acesse sua conta para gerar vistorias
                         </p>
                     </div>
 
-                    <form action={login} className="mt-8 space-y-6 bg-white p-6 rounded-lg shadow-sm">
+                    <form action={login} className="mt-8 space-y-6 p-6 rounded-xl shadow-lg border-2" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
                         <div className="space-y-4">
                             <div>
-                                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                                <label htmlFor="email" className="block text-sm font-semibold" style={{ color: 'var(--text)' }}>
                                     E-mail
                                 </label>
                                 <input
@@ -27,13 +32,14 @@ export default function LoginPage() {
                                     type="email"
                                     autoComplete="email"
                                     required
-                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    className="vr-input mt-1 block w-full rounded-lg px-4 py-3 shadow-sm"
                                     placeholder="seu@email.com"
+                                    style={{ backgroundColor: 'var(--bg)', border: '2px solid var(--border)', color: 'var(--text)' }}
                                 />
                             </div>
 
                             <div>
-                                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                                <label htmlFor="password" className="block text-sm font-semibold" style={{ color: 'var(--text)' }}>
                                     Senha
                                 </label>
                                 <input
@@ -42,21 +48,23 @@ export default function LoginPage() {
                                     type="password"
                                     autoComplete="current-password"
                                     required
-                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    className="vr-input mt-1 block w-full rounded-lg px-4 py-3 shadow-sm"
                                     placeholder="••••••••"
+                                    style={{ backgroundColor: 'var(--bg)', border: '2px solid var(--border)', color: 'var(--text)' }}
                                 />
                             </div>
                         </div>
 
                         <button
                             type="submit"
-                            className="w-full rounded-md bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                            className="vr-btn-primary w-full rounded-lg px-4 py-3 text-base font-semibold text-white shadow-md"
+                            style={{ backgroundColor: 'var(--primary)' }}
                         >
                             Entrar
                         </button>
 
-                        <div className="text-center text-sm">
-                            <Link href="/cadastro" className="font-medium text-blue-600 hover:text-blue-500">
+                        <div className="text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
+                            <Link href="/cadastro" className="font-semibold" style={{ color: 'var(--primary)' }}>
                                 Criar conta em 30 segundos
                             </Link>
                         </div>

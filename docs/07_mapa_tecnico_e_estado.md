@@ -30,6 +30,8 @@ Tabela `profiles` — colunas **reais** hoje:
 
 - `creci` e `telefone` foram criados **manualmente no SQL Editor** (não há migration no repo):
 
+*NOTA DE VALIDAÇÃO (Documento base 01/08/2026):* A estrutura original da tabela 'comodos' foi confirmada. Ela possui apenas 'descricao_bruta' e 'descricao_processada_ia'. Não existem colunas nativas para 'estado', 'item' ou 'observacao'. Por isso, usamos a função 'parseDescricaoBruta' no front-end para extrair e salvar esses dados concatenados dentro de 'descricao_bruta'.
+
 ```sql
 alter table public.profiles add column if not exists creci text;
 alter table public.profiles add column if not exists telefone text;
@@ -123,3 +125,4 @@ Legenda: ✅ = conteúdo conhecido (aberto/criado nesta fase); ⚠️ = papel co
 ## 8. ACORDOS DE TRABALHO
 
 - Respostas em PT-BR; **um passo operacional por mensagem**; alterações cirúrgicas no formato "apague isso / cole isso" com âncoras exatas; validar antes de avançar; explicar o "porquê" de cada decisão; MVP primeiro.
+

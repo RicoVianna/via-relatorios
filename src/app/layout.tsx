@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
+import Script from 'next/script';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-    themeColor: '#2563eb',
+    themeColor: '#2C3A2C',
     width: 'device-width',
     initialScale: 1,
     maximumScale: 1,
@@ -23,8 +24,16 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <html lang="pt-BR">
+        <html lang="pt-BR" suppressHydrationWarning>
             <body className={inter.className} suppressHydrationWarning>
+                {/* Anti-flash: aplica o tema ANTES do React hidratar */}
+                <Script
+                    id="theme-script"
+                    strategy="beforeInteractive"
+                    dangerouslySetInnerHTML={{
+                        __html: `(function(){try{var t=localStorage.getItem('vr-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');var s=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;if(s&&window.location.pathname==='/'){window.location.replace('/login');}}catch(e){}})();`,
+                    }}
+                />
                 {children}
             </body>
         </html>

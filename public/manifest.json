@@ -1,12 +1,11 @@
 {
     "name": "Via Relatórios",
-    "short_name": "ViaRelatórios",
-    "description": "Gere relatórios de vistoria imobiliária em PDF pelo celular.",
-    "start_url": "/",
+    "short_name": "Via Relatórios",
+    "description": "Laudos de vistoria imobiliária em PDF, direto do celular.",
+    "start_url": "/dashboard",
     "display": "standalone",
     "background_color": "#1B211B",
     "theme_color": "#2C3A2C",
-    "orientation": "portrait",
     "icons": [
         {
             "src": "/icon-192.png",

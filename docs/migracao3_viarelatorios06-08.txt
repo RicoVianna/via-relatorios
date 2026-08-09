@@ -1,0 +1,154 @@
+# 📘 VIA RELATÓRIOS — Mapa Técnico e Estado do Projeto
+
+**Documento de transição entre conversas.** Última atualização: 07/08/2026.
+**Como usar:** este documento + `docs/01–06` + `AGENTS.md`/`CLAUDE.md` formam a base de contexto. Regra de ouro: **nunca editar um arquivo marcado como "NÃO ABERTO" sem antes pedir o conteúdo ao usuário.**
+
+---
+
+## 1. VISÃO GERAL E STACK
+
+- **Produto:** PWA para corretores de imóveis gerarem laudos de vistoria em PDF (mobile-first).
+- **Stack:** Next.js 16.2.12 (App Router + Turbopack), TypeScript, Tailwind CSS, Supabase (Auth + Postgres + Storage), `@react-pdf/renderer` (PDF no cliente), Gemini (IA de texto).
+- **Repo:** GitHub `RicoVianna/via-relatorios`. Rodar: `npm run dev` → `http://localhost:3000`.
+- **Estrutura de rotas:** grupos `(auth)` (login/cadastro), `(dashboard)` (telas logadas), rotas dinâmicas `[id]`.
+- **Usuário/desenvolvedor:** dono do produto, nível iniciante em imagens/CSS, confortável com terminal/PowerShell. Prefere MVP, sem "perfumaria".
+
+## 2. IDENTIDADE DA MARCA (decisões fechadas)
+
+- **Símbolo aprovado:** casa em traço com check integrado, verde + grafite + filete dourado interno. Arquivo-fonte: `Downloads/logo-original.png` (1664×928); ícones gerados por recorte quadrado central.
+- **Paleta operacional (usada em código):**
+    - Fundo splash/dark: degradê `#1B211B → #2C3A2C`
+    - Off-white (cards/claro): `#F6F5F1`
+    - Dourado discreto: `#C2A24B`
+- **Regra de uso do logo:** sempre dentro de card off-white arredondado sobre fundos escuros; wordmark "VIA RELATÓRIOS" como tipografia (não embutir texto em ícones).
+- **Transições:** páginas entram com fade+subida (`vrPageFade` no `globals.css`); splashes com fade.
+
+## 3. BANCO DE DADOS — ESTADO REAL (crítico)
+
+Tabela `profiles` — colunas **reais** hoje:
+`id (uuid)`, `nome (text)`, `email (text)`, `criado_em (timestamptz)`, `creci (text)`, `telefone (text)`.
+
+- `creci` e `telefone` foram criados **manualmente no SQL Editor** (não há migration no repo):
+
+```sql
+alter table public.profiles add column if not exists creci text;
+alter table public.profiles add column if not exists telefone text;
+```
+
+- **NÃO EXISTEM (e o código referencia):** `logo_url` (usado por `uploadLogo` → vai falhar até ser criada), `plano`, `relatorios_usados_mes` (lidos com fallback `||` → inofensivo), `updated_at` (já removido do código).
+- **Storage:** bucket `logos` **NÃO foi criado** → upload de logo falha no storage antes de tudo.
+- **RLS:** ativo; UPDATE do próprio perfil funciona (policy existe).
+- **Vistorias (colunas usadas pelo código):** `id`, `status` (`'FINALIZADO'` trava edição), `tipo` (`'ENTRADA'`/`'SAIDA'`/outro→Captação), `endereco_rua/numero/complemento/bairro/cidade`, `nome_cliente`, `nome_locatario`, `data_vistoria`.
+- **Cômodos:** `id`, `vistoria_id`, `nome_comodo`, `descricao_bruta`, `descricao_processada_ia`, `criado_em`. ⚠️ Coluna `ordem` **provavelmente não existe** (código ordena por `criado_em` com comentário explicativo) — verificar antes de usar.
+
+## 4. MAPA ARQUIVO A ARQUIVO
+
+Legenda: ✅ = conteúdo conhecido (aberto/criado nesta fase); ⚠️ = papel conhecido por referência, conteúdo não verificado → **pedir antes de editar**.
+
+### Raiz do app
+- ✅ `src/app/globals.css` — Tailwind + bloco final: `@keyframes vrPageFade` e `main { animation: vrPageFade 0.35s ease-out; }` (fade de entrada de TODAS as páginas — todas usam `<main>`).
+- ✅ `src/app/icon.png` — favicon (cópia do icon-192; convenção App Router). O antigo `favicon.ico` foi removido.
+- ⚠️ `src/app/layout.tsx` — layout raiz (html/metadata). Pedir antes de editar.
+- ⚠️ `src/app/page.tsx` — rota `/`. Provável redirect por sessão. **Hero page pendente** (backlog).
+- ⚠️ `src/middleware.ts` — proteção/refresh de sessão. Next 16 exibe aviso de deprecação ("use proxy"). Funciona; migração no backlog.
+
+### Auth
+- ✅ `src/app/(auth)/login/page.tsx` — `LoginPage` (server component); renderiza `<SplashBoasVindas />` + `<main>` via fragmento `<>`; `form action={login}`; campos `email`/`password`; link `/cadastro`.
+- ⚠️ `src/app/(auth)/login/actions.ts` — action `login`. Pedir antes de editar.
+- ⚠️ `src/app/(auth)/cadastro/page.tsx` e `actions.ts` — signup. Pedir antes de editar.
+
+### Dashboard (grupo)
+- ✅ `src/app/(dashboard)/loading.tsx` — splash intermediário. Fundo degradê `#1B211B→#2C3A2C`; card off-white com `/icon-192.png`; filete `#C2A24B`; texto "Carregando"; `<style>` com `.vr-splash` (opacity 0 → `vrFadeIn 0.3s ease-out forwards`, sem delay).
+- ⚠️ `src/app/(dashboard)/layout.tsx` — nav inferior (Início/Nova/Perfil). Pedir antes de editar.
+- ⚠️ `src/app/(dashboard)/dashboard/page.tsx` — página inicial logada; saudação "Olá, {nome}".
+- ⚠️ `src/app/(dashboard)/dashboard/ListaVistorias.tsx` — lista de cards de vistorias.
+- ⚠️ `src/app/(dashboard)/dashboard/getDashboardData.ts` — busca profile + vistorias.
+- ⚠️ `src/app/(dashboard)/dashboard/actions.ts` — actions do dashboard.
+
+### Perfil
+- ✅ `src/app/(dashboard)/perfil/page.tsx` — `getProfile()`; `redirect('/login')` se null; renderiza `PerfilForm`.
+- ✅ `src/app/(dashboard)/perfil/PerfilForm.tsx` — componente client (export default chamado `PerfilPage`, não confundir). Funções/variáveis: `formatarTelefone(valor)` (máscara `(00) 00000-0000`/`(00) 0000-0000`, trunca em 11 dígitos); states `logoUrl`, `telefone` (campo **controlado**), `message: {texto, erro} | null`; `isPendingLogo/startTransitionLogo`, `isPendingProfile/startTransitionProfile`; `handleLogoChange`; `<form onSubmit>` com `startTransitionProfile` → `updateProfile` → mensagem verde "Dados salvos com sucesso!" ou vermelha; campos `nome`, `creci`, `telefone`, `email`; seção amarela "Plano" (sempre mostra fallback); form vermelho "Sair da Conta" → `logout`.
+- ✅ `src/app/(dashboard)/perfil/actions.ts` — `'use server'`. `uploadLogo(formData)`: sobe para bucket `logos` (NÃO EXISTE) como `${user.id}.${ext}`, upsert, depois `profiles.update({logo_url})` (coluna NÃO EXISTE). `updateProfile(formData)`: lê `nome`, `creci`, `telefone`, `email`; `console.error` em falha. `logout()`: `signOut()`.
+
+### Vistoria
+- ⚠️ `src/app/(dashboard)/vistoria/nova/page.tsx` + `actions.ts` — criação de vistoria.
+- ⚠️ `src/app/(dashboard)/vistoria/[id]/page.tsx` — detalhes; trava se FINALIZADO.
+- ⚠️ `.../[id]/HistoricoModal.tsx`, `ModalAdicionarComodo.tsx`, `actions.tsx`, `editar/*` — edição/cômodos/histórico. Pedir antes de editar.
+- ✅ `.../[id]/revisao/page.tsx` — server component; busca vistoria (`redirect('/dashboard')` se não achar); `auth.getUser()`; busca `profile` (`.select('nome, creci')` por `user.id`); `isFinalizada`; comodos ordenados por `criado_em`; botões finais: `BotaoCompartilhar` + `BotaoGerarPDF profile={profile}`.
+- ✅ `.../[id]/revisao/BotaoGerarPDF.tsx` — `'use client'`; props `{vistoria, comodos, profile?}`; state `montado` (useEffect) — renderiza placeholder `<span>` idêntico ao botão enquanto `!montado` (corrige erro SSR do `PDFDownloadLink`); depois `PDFDownloadLink` com `DocumentoPDF`.
+- ✅ `.../[id]/revisao/DocumentoPDF.tsx` — laudo `@react-pdf/renderer`; `Font.register` Roboto (CDN); estilos em `StyleSheet`; seções: "1. Dados Gerais", **"Corretor Responsável"** (renderiza `profile.nome` e `profile.creci` — linha do CRECI condicional), "2. Detalhamento dos Cômodos", rodapé fixo.
+- ⚠️ `.../[id]/revisao/actions.ts` — `processarDescricaoIA` (Gemini).
+
+### Lib / Components / Types
+- ✅ `src/lib/getProfile.ts` — `getProfile()`: user → `profiles.select('*')` → profile ou null.
+- ⚠️ `src/lib/supabase/server.ts` — `createClient` SSR (cookies).
+- ⚠️ `src/lib/supabase/cliets.ts` — **nome com typo ("cliets")**; client browser. NÃO "corrigir" o nome sem atualizar todos os imports.
+- ⚠️ `src/lib/gemini.ts`, `src/types/database.ts`, `src/components/vistorias/BotaoCompartilhar.tsx` — pedir antes de editar.
+- ✅ `src/components/SplashBoasVindas.tsx` — overlay fixo z-50; timeouts 1200ms (inicia fade) e 1800ms (desmonta); logo card + filete dourado + "Via Relatórios".
+
+### Public / Docs
+- ✅ `public/manifest.json` — name "Via Relatórios"; `background_color #1B211B`; `theme_color #2C3A2C`; ícones `/icon-192.png` e `/icon-512.png`.
+- ✅ `public/icon-192.png`, `public/icon-512.png` — ícones da marca. `file.svg`, `globe.svg`, `next.svg`, `vercel.svg`, `window.svg` são sobras do template (limpeza opcional).
+- `docs/01–06` — visão de produto/banco/IA. `docs/migracao*.txt` e `resumos` — histórico. `AGENTS.md`/`CLAUDE.md` — regras de desenvolvimento no repo.
+
+## 5. TAREFAS CONCLUÍDAS (esta fase)
+
+1. Reorganização de pastas (projeto na raiz; `.git` com histórico completo preservado).
+2. Nome do corretor + CRECI no PDF (coluna `creci` + cadeia `page → BotaoGerarPDF → DocumentoPDF`).
+3. Correção do salvamento do perfil (colunas reais `nome`/`telefone`; removido `updated_at`).
+4. Máscara de telefone (campo controlado — evita bug do value tracker do React).
+5. Feedback de salvamento (mensagem verde/vermelha + "Salvando...").
+6. Correção SSR do `PDFDownloadLink` (padrão `montado`).
+7. Logout funcional.
+8. Identidade visual: logo, favicon, ícones PWA, cores do manifest.
+9. Splashes: loading intermediário, fade de páginas, boas-vindas no login.
+
+## 6. BACKLOG ORDENADO (próximos passos)
+
+1. **Upload de logo no Perfil** — pré-requisitos: criar bucket `logos` + coluna `logo_url` (+ política RLS de storage).
+2. **Página hero** em `/` (substituir redirect seco por landing de apresentação).
+3. Redesign visual da tela de Perfil (usuário achou "longe do ideal", adiado por MVP).
+4. Modo dark com toggle (desejo do usuário; paleta escura já definida).
+5. Migração `middleware.ts` → `proxy` (aviso do Next 16).
+6. Exclusão de conta (LGPD) — pós-MVP.
+7. Teste de instalação PWA em celular real.
+
+## 7. PROBLEMAS CONHECIDOS / AVISOS
+
+- Aviso de deprecação do `middleware` no boot (Next 16) — cosmético por ora.
+- `uploadLogo` falhará até existirem bucket `logos` e coluna `logo_url`.
+- Seção "Plano" do perfil sempre mostra fallback (colunas inexistentes).
+- Não renomear `cliets.ts` sem varrer imports.
+
+## 8. ACORDOS DE TRABALHO
+
+- Respostas em PT-BR; **um passo operacional por mensagem**; alterações cirúrgicas no formato "apague isso / cole isso" com âncoras exatas; validar antes de avançar; explicar o "porquê" de cada decisão; MVP primeiro.
+
+
+
+Ordem recomendada
+Primeiro: a Constituição (AGENTS.md / CLAUDE.md)
+→ Ela estabelece como o modelo deve trabalhar com você. Se vier depois, o modelo pode responder de um jeito diferente antes de ler as regras.
+Segundo: os docs 01–06
+→ Eles são a base do projeto (visão, requisitos, banco, IA, setup, histórico). Sem eles, o doc 07 faria referência a coisas que a nova aba não conhece.
+Por último: o doc 07 (mapa técnico)
+→ Ele é a ponte: diz "estamos aqui, já fizemos isso, falta aquilo". Só faz sentido depois que a nova aba já leu tudo que veio antes.
+Dica prática (importante)
+Envie os três em sequência rápida, sem dar tempo do modelo responder — ou, se couber, junte tudo numa única mensagem. Se o modelo começar a responder no meio, ele pode tomar decisões antes de ter o quadro completo.
+Mensagem de abertura sugerida
+Depois de enviar os três documentos, feche com algo assim:
+"Contexto completo acima. Continuando o Via Relatórios: a próxima tarefa do backlog (doc 07, seção 6) é o Upload de logo no Perfil — que depende de criar o bucket logos e a coluna logo_url. Me guie passo a passo."
+
+
+
+### 7. PRÓXIMOS PASSOS E BACKLOG (ROTEIRO PARA A NOVA SESSÃO)
+A funcionalidade de "Adicionar e Editar Cômodos" foi 100% concluída e estabilizada. Os próximos passos, em ordem de prioridade, são:
+
+1. **Excluir Cômodo:** Adicionar um ícone de "Lixeira" ao lado do lápis de edição na lista de cômodos (tanto na tela de edição quanto na de detalhes), permitindo que o usuário remova um cômodo cadastrado por engano.
+2. **Botão "Reabrir Vistoria":** Atualmente, vistorias "Finalizadas" não podem ser editadas. Precisamos criar um botão na tela de detalhes que permita ao usuário reverter o status de "FINALIZADO" para "EM ANDAMENTO" caso ele precise fazer ajustes após a finalização.
+3. **Finalizar Tela de Revisão e PDF:** A rota `/revisao` já existe e tem o botão de IA. O foco agora é desenvolver o layout visual do PDF (usando `@react-pdf/renderer` ou similar) e garantir que o botão de download gere o laudo formatado corretamente.
+4. **Reordenar Cômodos:** O banco de dados já possui a coluna `ordem` na tabela `comodos`. Precisamos criar botões de "Subir" e "Descer" (ou drag-and-drop) na tela de edição para que o usuário possa definir a ordem em que os cômodos aparecerão no PDF final.
+5. **Refinamento da IA:** Garantir que o botão "Melhorar este texto com IA" na tela de revisão tenha um estado de "Carregando..." visual e trate erros de API de forma amigável.
+6. **Upload de Fotos:** (Pós-MVP) Permitir anexar fotos a cada cômodo.
+
+

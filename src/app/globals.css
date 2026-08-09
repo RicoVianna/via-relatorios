@@ -40,3 +40,82 @@ body {
 main {
     animation: vrPageFade 0.35s ease-out;
 }
+
+/* ===== Sistema de temas (claro/escuro) ===== */
+:root {
+    --bg: #F6F5F1;
+    --surface: #FFFFFF;
+    --text: #2B2F2B;
+    --text-secondary: #6B7A5E;
+    --primary: #435240;
+    --primary-hover: #2B2F2B;
+    --accent: #C2A24B;
+    --accent-hover: #B8943F;
+    --border: #D1D5DB;
+}
+
+[data-theme='dark'] {
+    --bg: #1B211B;
+    --surface: #2C3A2C;
+    --text: #F6F5F1;
+    --text-secondary: #A8B0A0;
+    --primary: #6B7A5E;
+    --primary-hover: #7D8C6E;
+    --accent: #C2A24B;
+    --accent-hover: #B8943F;
+    --border: #3D4A3D;
+}
+
+/* ===== Hovers para componentes (substituem onMouseOver/onMouseOut) ===== */
+.vr-btn-primary {
+    transition: background-color 0.15s ease;
+}
+.vr-btn-primary:hover {
+    background-color: var(--primary-hover) !important;
+}
+
+.vr-btn-accent {
+    transition: background-color 0.15s ease;
+}
+.vr-btn-accent:hover {
+    background-color: var(--accent-hover) !important;
+}
+
+.vr-btn-ghost {
+    transition: all 0.15s ease;
+}
+.vr-btn-ghost:hover {
+    background-color: var(--bg) !important;
+    border-color: var(--primary) !important;
+    color: var(--primary) !important;
+}
+
+.vr-card-link {
+    transition: all 0.2s ease;
+}
+.vr-card-link:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);
+    border-color: var(--primary) !important;
+}
+
+.vr-back-link {
+    transition: all 0.15s ease;
+}
+.vr-back-link:hover {
+    color: var(--primary) !important;
+    border-color: var(--primary) !important;
+}
+
+/* ===== Ícones do calendário (corrige ícone preto no modo escuro) ===== */
+[data-theme='dark'] input[type="date"]::-webkit-calendar-picker-indicator,
+[data-theme='dark'] input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+}
+
+/* ===== Focus para inputs de login/cadastro (server components) ===== */
+.vr-input:focus {
+    border-color: var(--primary) !important;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(67, 82, 64, 0.2);
+}
