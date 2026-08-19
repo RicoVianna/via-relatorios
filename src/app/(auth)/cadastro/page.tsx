@@ -1,17 +1,21 @@
-'use client';
-
-import { useState } from 'react';
-import Link from 'next/link';
 import { cadastro } from './actions';
+import Link from 'next/link';
 import ThemeToggle from '@/components/ThemeToggle';
+import InputSenha from '@/components/auth/InputSenha';
 
-export default function CadastroPage() {
-    const [nome, setNome] = useState('');
-    const [email, setEmail] = useState('');
-    const [senha, setSenha] = useState('');
+export default async function CadastroPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ error?: string }>;
+}) {
+    const { error } = await searchParams;
+    const mensagemErro = error ? decodeURIComponent(error) : null;
 
     return (
-        <main className="flex min-h-screen flex-col items-center justify-center p-4 relative" style={{ backgroundColor: 'var(--bg)' }}>
+        <main
+            className="flex min-h-screen flex-col items-center justify-center p-4 relative"
+            style={{ backgroundColor: 'var(--bg)' }}
+        >
             <div className="absolute top-4 right-4">
                 <ThemeToggle />
             </div>
@@ -24,7 +28,20 @@ export default function CadastroPage() {
                     </p>
                 </div>
 
-                <form action={cadastro} className="mt-8 space-y-6 p-6 rounded-xl shadow-lg border-2" style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}>
+                {mensagemErro && (
+                    <div
+                        className="p-4 rounded-lg text-sm font-medium border-2"
+                        style={{ backgroundColor: '#FEE2E2', border: '2px solid #FCA5A5', color: '#991B1B' }}
+                    >
+                        {mensagemErro}
+                    </div>
+                )}
+
+                <form
+                    action={cadastro}
+                    className="mt-8 space-y-6 p-6 rounded-xl shadow-lg border-2"
+                    style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
+                >
                     <div className="space-y-4">
                         <div>
                             <label htmlFor="nome" className="block text-sm font-semibold" style={{ color: 'var(--text)' }}>
@@ -35,8 +52,6 @@ export default function CadastroPage() {
                                 name="nome"
                                 type="text"
                                 required
-                                value={nome}
-                                onChange={(e) => setNome(e.target.value)}
                                 className="vr-input mt-1 block w-full rounded-lg px-4 py-3 shadow-sm"
                                 placeholder="João da Silva"
                                 style={{ backgroundColor: 'var(--bg)', border: '2px solid var(--border)', color: 'var(--text)' }}
@@ -53,8 +68,6 @@ export default function CadastroPage() {
                                 type="email"
                                 autoComplete="email"
                                 required
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
                                 className="vr-input mt-1 block w-full rounded-lg px-4 py-3 shadow-sm"
                                 placeholder="seu@email.com"
                                 style={{ backgroundColor: 'var(--bg)', border: '2px solid var(--border)', color: 'var(--text)' }}
@@ -65,17 +78,12 @@ export default function CadastroPage() {
                             <label htmlFor="senha" className="block text-sm font-semibold" style={{ color: 'var(--text)' }}>
                                 Senha
                             </label>
-                            <input
+                            <InputSenha
                                 id="senha"
                                 name="senha"
-                                type="password"
                                 autoComplete="new-password"
                                 required
-                                value={senha}
-                                onChange={(e) => setSenha(e.target.value)}
-                                className="vr-input mt-1 block w-full rounded-lg px-4 py-3 shadow-sm"
                                 placeholder="Mínimo 6 caracteres"
-                                style={{ backgroundColor: 'var(--bg)', border: '2px solid var(--border)', color: 'var(--text)' }}
                             />
                         </div>
                     </div>
