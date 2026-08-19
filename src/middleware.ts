@@ -39,7 +39,9 @@ export async function middleware(request: NextRequest) {
         !request.nextUrl.pathname.startsWith('/login') &&
         !request.nextUrl.pathname.startsWith('/cadastro') &&
         !request.nextUrl.pathname.startsWith('/esqueci-senha') &&
-        !request.nextUrl.pathname.startsWith('/atualizar-senha')
+        !request.nextUrl.pathname.startsWith('/atualizar-senha') &&
+        !request.nextUrl.pathname.startsWith('/termos-de-uso') &&
+        !request.nextUrl.pathname.startsWith('/politica-de-privacidade')
     ) {
         const url = request.nextUrl.clone();
         url.pathname = '/login';

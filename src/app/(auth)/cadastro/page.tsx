@@ -88,6 +88,27 @@ export default async function CadastroPage({
                         </div>
                     </div>
 
+                    <div className="flex items-start gap-3">
+                        <input
+                            type="checkbox"
+                            id="termos"
+                            name="termos"
+                            required
+                            className="mt-1 h-4 w-4 shrink-0"
+                            style={{ accentColor: 'var(--primary)' }}
+                        />
+                        <span className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                            Li e concordo com os{' '}
+                            <Link href="/termos-de-uso" target="_blank" rel="noopener noreferrer" className="font-semibold underline" style={{ color: 'var(--primary)' }}>
+                                Termos de Uso
+                            </Link>{' '}
+                            e a{' '}
+                            <Link href="/politica-de-privacidade" target="_blank" rel="noopener noreferrer" className="font-semibold underline" style={{ color: 'var(--primary)' }}>
+                                Política de Privacidade
+                            </Link>
+                        </span>
+                    </div>
+
                     <button
                         type="submit"
                         className="vr-btn-primary w-full rounded-lg px-4 py-3 text-base font-semibold text-white shadow-md"

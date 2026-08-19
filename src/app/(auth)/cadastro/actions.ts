@@ -32,6 +32,11 @@ export async function cadastro(formData: FormData) {
         redirect('/cadastro?error=' + encodeURIComponent('Preencha todos os campos obrigatórios.'));
     }
 
+    const termos = formData.get('termos');
+    if (!termos) {
+        redirect('/cadastro?error=' + encodeURIComponent('Você precisa aceitar os Termos de Uso e a Política de Privacidade.'));
+    }
+
     // 1. Criar a conta no Supabase
     const { error: signUpError } = await supabase.auth.signUp({
         email,
@@ -54,6 +59,18 @@ export async function cadastro(formData: FormData) {
     if (signInError) {
         // Quando ativarmos a confirmação de e-mail, cai aqui:
         redirect('/login?error=' + encodeURIComponent('Conta criada! Verifique seu e-mail para confirmar e depois entre.'));
+    }
+
+    // 3. Registrar o aceite dos termos (LGPD)
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+        await supabase
+            .from('profiles')
+            .update({
+                termos_aceitos_em: new Date().toISOString(),
+                termos_versao: '1.0',
+            })
+            .eq('id', user.id);
     }
 
     redirect('/dashboard');

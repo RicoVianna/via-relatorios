@@ -105,8 +105,8 @@ export default function LandingFaqFooter() {
                 <div className="px-4 md:px-8 py-6 border-t" style={{ borderColor: 'rgba(194, 162, 75, 0.3)' }}>
                     <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm" style={{ color: '#A8B0A0' }}>
                         <div className="flex items-center gap-4">
-                            <span>Termos de Uso</span>
-                            <span>Política de Privacidade</span>
+                            <Link href="/termos-de-uso" className="hover:underline" style={{ color: '#A8B0A0' }}>Termos de Uso</Link>
+                            <Link href="/politica-de-privacidade" className="hover:underline" style={{ color: '#A8B0A0' }}>Política de Privacidade</Link>
                             <span>Suporte</span>
                             <a href="#instalacao" className="font-semibold" style={{ color: '#C2A24B' }}>Instalar App</a>
                         </div>

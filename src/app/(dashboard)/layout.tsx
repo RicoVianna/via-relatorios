@@ -15,6 +15,13 @@ export default function DashboardLayout({
         <div className="flex min-h-screen flex-col" style={{ backgroundColor: 'var(--bg)' }}>
             <main className="flex-1 pb-24">
                 {children}
+
+                <footer className="px-4 pt-8 pb-4 text-center">
+                    <div className="flex justify-center gap-4 text-xs" style={{ color: 'var(--text-secondary)' }}>
+                        <Link href="/termos-de-uso" target="_blank" rel="noopener noreferrer" className="underline">Termos</Link>
+                        <Link href="/politica-de-privacidade" target="_blank" rel="noopener noreferrer" className="underline">Privacidade</Link>
+                    </div>
+                </footer>
             </main>
 
             <nav 
