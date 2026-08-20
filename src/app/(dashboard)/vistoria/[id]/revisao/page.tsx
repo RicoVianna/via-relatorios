@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { processarDescricaoIA } from './actions';
 import BotaoGerarPDF from './BotaoGerarPDF';
 import BotaoCompartilhar from '@/components/vistorias/BotaoCompartilhar';
+import GaleriaFotos from '@/components/GaleriaFotos';
 
 // Next.js 15: params deve ser tipado como Promise
 export default async function RevisaoPage({ params }: { params: Promise<{ id: string }> }) {
@@ -114,6 +115,13 @@ export default async function RevisaoPage({ params }: { params: Promise<{ id: st
                                 ) : (
                                     <p className="text-base italic p-3 rounded-lg" style={{ color: 'var(--text-secondary)', backgroundColor: 'var(--bg)' }}>{comodo.descricao_bruta || "Sem descrição."}</p>
                                 )}
+
+                                <GaleriaFotos
+                                    comodoId={comodo.id}
+                                    vistoriaId={vistoriaId}
+                                    fotos={(fotos ?? []).filter((f: any) => f.comodo_id === comodo.id)}
+                                    modo="leitura"
+                                />
 
                                 {/* BOTÃO DE IA: SÓ APARECE SE NÃO ESTIVER FINALIZADA E NÃO TIVER IA */}
                                 {!isFinalizada && !comodo.descricao_processada_ia && (
