@@ -27,6 +27,12 @@ export default async function EditarVistoriaPage({ params }: { params: Promise<{
         .eq('vistoria_id', vistoriaId)
         .order('ordem', { ascending: true });
 
+    const { data: fotos } = await supabase
+        .from('fotos')
+        .select('*')
+        .eq('vistoria_id', vistoriaId)
+        .order('ordem', { ascending: true });
+
     return (
         <main className="min-h-screen bg-gray-50 pb-20">
             {/* Header */}
@@ -41,7 +47,7 @@ export default async function EditarVistoriaPage({ params }: { params: Promise<{
             </header>
 
             {/* Componente Cliente Interativo */}
-            <EditarVistoriaClient vistoria={vistoria} comodos={comodos || []} />
+            <EditarVistoriaClient vistoria={vistoria} comodos={comodos || []} fotos={fotos || []} />
         </main>
     );
 }

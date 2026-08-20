@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import { atualizarDetalhesVistoria } from './actions';
 import { excluirComodo, excluirVistoria } from '../actions';
 import ModalAdicionarComodo from '../ModalAdicionarComodo';
+import GaleriaFotos from '@/components/GaleriaFotos';
 
-export default function EditarVistoriaClient({ vistoria, comodos }: { vistoria: any, comodos?: any[] }) {
+export default function EditarVistoriaClient({ vistoria, comodos, fotos }: { vistoria: any, comodos?: any[], fotos?: any[] }) {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [erro, setErro] = useState('');
@@ -200,7 +201,7 @@ export default function EditarVistoriaClient({ vistoria, comodos }: { vistoria: 
 
                         {/* Lista visual dos cômodos (mantenha o seu código de lista aqui embaixo) */}
                         {comodos && comodos.length > 0 ? (
-                            <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                            <div className="space-y-2">
                                 {comodos.map((comodo: any) => (
                                     <div key={comodo.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm flex justify-between items-start gap-3">
                                         <div className="flex-1">
@@ -216,6 +217,12 @@ export default function EditarVistoriaClient({ vistoria, comodos }: { vistoria: 
                                             <div className="text-gray-600 line-clamp-2">
                                                 {comodo.descricao_processada_ia || comodo.descricao_bruta || "Sem descrição"}
                                             </div>
+                                            <GaleriaFotos
+                                                comodoId={comodo.id}
+                                                vistoriaId={vistoria.id}
+                                                fotos={(fotos ?? []).filter((f: any) => f.comodo_id === comodo.id)}
+                                                modo="edicao"
+                                            />
                                         </div>
                                         
                                         {/* Botões de Ação (Editar e Excluir) */}

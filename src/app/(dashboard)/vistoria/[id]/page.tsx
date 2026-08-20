@@ -4,6 +4,7 @@ import Link from 'next/link';
 import ModalAdicionarComodo from './ModalAdicionarComodo';
 import { finalizarVistoria } from './actions';
 import HistoricoModal from './HistoricoModal';
+import GaleriaFotos from '@/components/GaleriaFotos';
 
 export default async function DetalhesVistoriaPage({ params }: { params: Promise<{ id: string }> }) {
     const supabase = await createClient();
@@ -16,6 +17,8 @@ export default async function DetalhesVistoriaPage({ params }: { params: Promise
     if (!vistoria) redirect('/dashboard');
 
     const { data: comodos } = await supabase.from('comodos').select('*').eq('vistoria_id', vistoriaId).order('criado_em', { ascending: true });
+
+    const { data: fotos } = await supabase.from('fotos').select('*').eq('vistoria_id', vistoriaId).order('ordem', { ascending: true });
 
     const { data: historico } = await supabase
         .from('historico_alteracoes')
@@ -144,6 +147,12 @@ export default async function DetalhesVistoriaPage({ params }: { params: Promise
                                     ) : (
                                         <p className="text-base italic" style={{ color: 'var(--text-secondary)' }}>{comodo.descricao_bruta || "Sem descrição."}</p>
                                     )}
+                                    <GaleriaFotos
+                                        comodoId={comodo.id}
+                                        vistoriaId={vistoriaId}
+                                        fotos={(fotos ?? []).filter((f: any) => f.comodo_id === comodo.id)}
+                                        modo="leitura"
+                                    />
                                 </div>
                             ))}
                         </div>
