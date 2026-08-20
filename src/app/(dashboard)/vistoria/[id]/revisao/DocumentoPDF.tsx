@@ -1,4 +1,4 @@
-import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Font, Image, Link } from '@react-pdf/renderer';
 
 // Registrando uma fonte padrão para evitar problemas de acentuação no PDF
 Font.register({
@@ -23,6 +23,9 @@ const styles = StyleSheet.create({
     fotoImg: { width: '100%', height: 220, objectFit: 'contain', borderRadius: 4, marginBottom: 6 },
     fotoTitle: { fontSize: 10, fontWeight: 'bold', color: '#374151', marginTop: 6, marginBottom: 2 },
     fotoLegenda: { fontSize: 9, color: '#6B7280', marginTop: 2 },
+    validacaoBox: { marginTop: 20, padding: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB', borderRadius: 4, border: '1pt solid #E5E7EB' },
+    validacaoTitle: { fontSize: 10, fontWeight: 'bold', color: '#1E3A8A', marginBottom: 4 },
+    validacaoText: { fontSize: 9, color: '#4B5563', lineHeight: 1.4 },
     footer: { position: 'absolute', bottom: 30, left: 30, right: 30, textAlign: 'center', color: '#9CA3AF', fontSize: 9, borderTop: '1pt solid #E5E7EB', paddingTop: 10 }
 });
 
@@ -36,7 +39,7 @@ function tamanhoFoto(foto: any) {
     return { width: Math.round(w * escala), height: Math.round(h * escala) };
 }
 
-export default function DocumentoPDF({ vistoria, comodos, fotos, profile }: { vistoria: any; comodos: any[]; fotos?: any[]; profile?: any }) {
+export default function DocumentoPDF({ vistoria, comodos, fotos, profile, qrDataUrl, linkValidacao }: { vistoria: any; comodos: any[]; fotos?: any[]; profile?: any; qrDataUrl?: string | null; linkValidacao?: string | null }) {
     const tipoFormatado = vistoria.tipo === 'ENTRADA' ? 'Entrada' : vistoria.tipo === 'SAIDA' ? 'Saída' : 'Captação';
 
     // Grupos de cômodos que têm fotos (para colar os títulos às fotos)
@@ -156,6 +159,23 @@ export default function DocumentoPDF({ vistoria, comodos, fotos, profile }: { vi
                                 ))}
                             </View>
                         ))}
+                    </View>
+                )}
+
+                {/* Validação de Autenticidade (QR Code) */}
+                {qrDataUrl && linkValidacao && (
+                    <View style={styles.validacaoBox} wrap={false}>
+                        <Image src={qrDataUrl} style={{ width: 70, height: 70, marginRight: 10 }} />
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.validacaoTitle}>Validação de Autenticidade</Text>
+                            <Text style={styles.validacaoText}>
+                                Escaneie o QR Code ou acesse{' '}
+                                <Link src={linkValidacao} style={{ color: '#2563EB', textDecoration: 'underline' }}>
+                                    {linkValidacao}
+                                </Link>{' '}
+                                para confirmar que este laudo é autêntico e não foi alterado após a finalização.
+                            </Text>
+                        </View>
                     </View>
                 )}
 

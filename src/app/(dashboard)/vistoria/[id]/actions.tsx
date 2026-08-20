@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { nanoid } from 'nanoid';
 
 export async function adicionarComodo(formData: FormData) {
     const supabase = await createClient();
@@ -112,9 +113,23 @@ export async function excluirComodo(comodoId: string, vistoriaId: string) {
 export async function finalizarVistoria(vistoriaId: string) {
     const supabase = await createClient();
 
+    // 1. Verificar se a vistoria já tem código (caso de refinalização)
+    const { data: vistoriaAtual } = await supabase
+        .from('vistorias')
+        .select('codigo_validacao')
+        .eq('id', vistoriaId)
+        .single();
+
+    // 2. Gerar código apenas se ainda não existir (10 caracteres, URL-safe)
+    const codigo = vistoriaAtual?.codigo_validacao || nanoid(10);
+
+    // 3. Atualizar status + código de validação de uma vez
     const { error } = await supabase
         .from('vistorias')
-        .update({ status: 'FINALIZADO' })
+        .update({
+            status: 'FINALIZADO',
+            codigo_validacao: codigo,
+        })
         .eq('id', vistoriaId);
 
     if (error) {
@@ -122,8 +137,11 @@ export async function finalizarVistoria(vistoriaId: string) {
         throw new Error('Não foi possível finalizar a vistoria.');
     }
 
+    // 4. Revalidar páginas (incluindo a página pública do laudo)
     revalidatePath(`/vistoria/${vistoriaId}`);
-    revalidatePath('/dashboard'); // Atualiza o dashboard para mover o card
+    revalidatePath(`/laudo/${codigo}`);
+    revalidatePath('/dashboard');
+
     redirect('/dashboard');
 }
 

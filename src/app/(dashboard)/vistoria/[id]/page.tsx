@@ -5,6 +5,7 @@ import ModalAdicionarComodo from './ModalAdicionarComodo';
 import { finalizarVistoria } from './actions';
 import HistoricoModal from './HistoricoModal';
 import GaleriaFotos from '@/components/GaleriaFotos';
+import BotaoCopiarLink from './BotaoCopiarLink';
 
 export default async function DetalhesVistoriaPage({ params }: { params: Promise<{ id: string }> }) {
     const supabase = await createClient();
@@ -101,6 +102,10 @@ export default async function DetalhesVistoriaPage({ params }: { params: Promise
                                         </button>
                                     </form>
                                 </>
+                            )}
+
+                            {isFinalizada && vistoria.codigo_validacao && (
+                                <BotaoCopiarLink codigo={vistoria.codigo_validacao} />
                             )}
                         </div>
                     </div>

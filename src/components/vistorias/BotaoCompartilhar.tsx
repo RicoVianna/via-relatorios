@@ -27,6 +27,11 @@ function montarTextoCompartilhamento(vistoria: any, comodos: any[]): string {
     }
 
     texto += `\n✅ Laudo finalizado e pronto para envio.`;
+    
+    if (vistoria.codigo_validacao) {
+        texto += `\n\n🔗 Link de validação: ${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/laudo/${vistoria.codigo_validacao}`;
+    }
+    
     return texto;
 }
 
