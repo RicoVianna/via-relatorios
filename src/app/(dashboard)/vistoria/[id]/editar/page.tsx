@@ -27,6 +27,7 @@ export default async function EditarVistoriaPage({ params }: { params: Promise<{
         .eq('vistoria_id', vistoriaId)
         .order('ordem', { ascending: true });
 
+    // Buscar fotos da vistoria
     const { data: fotos } = await supabase
         .from('fotos')
         .select('*')
@@ -34,15 +35,15 @@ export default async function EditarVistoriaPage({ params }: { params: Promise<{
         .order('ordem', { ascending: true });
 
     return (
-        <main className="min-h-screen bg-gray-50 pb-20">
+        <main className="min-h-screen pb-20" style={{ backgroundColor: 'var(--bg)' }}>
             {/* Header */}
-            <header className="bg-white p-4 shadow-sm flex items-center">
-                <a href={`/vistoria/${vistoria.id}`} className="text-gray-600 mr-4 hover:text-blue-600 transition-colors">
+            <header className="p-4 shadow-sm flex items-center" style={{ backgroundColor: 'var(--surface)' }}>
+                <a href={`/vistoria/${vistoria.id}`} className="mr-4 font-medium transition-colors" style={{ color: 'var(--text-secondary)' }}>
                     ← Voltar
                 </a>
                 <div className="flex-1">
-                    <h1 className="text-lg font-bold text-gray-900">Editar Vistoria</h1>
-                    <p className="text-xs text-gray-500 truncate">{vistoria.endereco_rua}, {vistoria.endereco_numero}</p>
+                    <h1 className="text-lg font-bold" style={{ color: 'var(--text)' }}>Editar Vistoria</h1>
+                    <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{vistoria.endereco_rua}, {vistoria.endereco_numero}</p>
                 </div>
             </header>
 
