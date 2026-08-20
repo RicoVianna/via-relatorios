@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import DocumentoPDF from './DocumentoPDF';
 
-export default function BotaoGerarPDF({ vistoria, comodos, profile }: { vistoria: any; comodos: any[]; profile?: any }) {
+export default function BotaoGerarPDF({ vistoria, comodos, fotos, profile }: { vistoria: any; comodos: any[]; fotos?: any[]; profile?: any }) {
     // O PDFDownloadLink só funciona no navegador. Sem este bloqueio, o Next.js
     // tenta renderizá-lo no servidor e gera erro no terminal a cada acesso.
     const [montado, setMontado] = useState(false);
@@ -25,7 +25,7 @@ export default function BotaoGerarPDF({ vistoria, comodos, profile }: { vistoria
     return (
         
         <PDFDownloadLink
-            document={<DocumentoPDF vistoria={vistoria} comodos={comodos} profile={profile} />}
+            document={<DocumentoPDF vistoria={vistoria} comodos={comodos} fotos={fotos} profile={profile} />}
             fileName={`vistoria-${vistoria.nome_cliente}-${vistoria.endereco_rua}.pdf`}
             className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 shadow-sm transition-colors flex items-center justify-center gap-2 text-center no-underline"
         >

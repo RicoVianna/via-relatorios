@@ -16,6 +16,8 @@ export async function uploadFoto(
     const comodoId = formData.get('comodo_id') as string;
     const vistoriaId = formData.get('vistoria_id') as string;
     const file = formData.get('foto') as File;
+    const largura = parseInt(formData.get('largura') as string, 10) || null;
+    const altura = parseInt(formData.get('altura') as string, 10) || null;
 
     if (!comodoId || !vistoriaId || !file) {
         return { error: 'Dados incompletos.' };
@@ -81,6 +83,8 @@ export async function uploadFoto(
             caminho_storage: fileName,
             url: publicUrl,
             ordem: (fotos ?? []).length,
+            largura,
+            altura,
         })
         .select()
         .single();

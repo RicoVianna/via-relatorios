@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Camera, Image as ImageIcon, Trash2, X, GripVertical, Edit2, Check } from 'lucide-react';
 import { comprimirImagem } from '@/lib/comprimirImagem';
 import { uploadFoto } from '@/app/(dashboard)/vistoria/actions/fotos/uploadFoto';
@@ -35,6 +35,18 @@ export default function GaleriaFotos({ comodoId, vistoriaId, fotos, modo, onFoto
     const fileInputRef = useRef<HTMLInputElement>(null);
     const cameraInputRef = useRef<HTMLInputElement>(null);
 
+    // Trava a rolagem da página enquanto a foto está ampliada
+    useEffect(() => {
+        if (fotoAmpliada) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [fotoAmpliada]);
+
     async function handleUpload(files: FileList | null) {
         if (!files || files.length === 0) return;
 
@@ -46,33 +58,25 @@ export default function GaleriaFotos({ comodoId, vistoriaId, fotos, modo, onFoto
                 const file = files[i];
                 
                 // Comprimir a imagem
-                const blob = await comprimirImagem(file);
+                const { blob, largura, altura } = await comprimirImagem(file);
                 const compressedFile = new File([blob], file.name, { type: 'image/jpeg' });
 
                 const formData = new FormData();
                 formData.append('comodo_id', comodoId);
                 formData.append('vistoria_id', vistoriaId);
+                formData.append('largura', String(largura));
+                formData.append('altura', String(altura));
                 formData.append('foto', compressedFile);
 
                 const resultado = await uploadFoto(formData);
 
                 if (resultado?.error) {
                     setErro(resultado.error);
-                    break;
-                }
-
-                if (resultado?.url) {
-                    const novaFoto: Foto = {
-                        id: `temp-${Date.now()}-${i}`,
-                        url: resultado.url,
-                        legenda: null,
-                        ordem: fotosLista.length + i,
-                    };
-                    setFotosLista((prev) => [...prev, novaFoto]);
+                    return; // Mantém o erro visível, sem recarregar
                 }
             }
 
-            // Recarregar a página para buscar as fotos reais com IDs corretos
+            // Recarrega apenas se não houve erro
             window.location.reload();
         } catch (err: any) {
             setErro(err.message || 'Erro ao fazer upload.');
@@ -175,12 +179,14 @@ export default function GaleriaFotos({ comodoId, vistoriaId, fotos, modo, onFoto
                             )}
 
                             {/* Imagem */}
-                            <img
-                                src={foto.url}
-                                alt={foto.legenda || 'Foto do cômodo'}
-                                className="w-full h-32 object-cover cursor-pointer"
-                                onClick={() => setFotoAmpliada(foto)}
-                            />
+                            <div className="w-full h-32 overflow-hidden">
+                                <img
+                                    src={foto.url}
+                                    alt={foto.legenda || 'Foto do cômodo'}
+                                    className="w-full h-full object-cover cursor-pointer"
+                                    onClick={() => setFotoAmpliada(foto)}
+                                />
+                            </div>
 
                             {/* Botão remover (só no modo edição) */}
                             {modo === 'edicao' && (
@@ -196,40 +202,56 @@ export default function GaleriaFotos({ comodoId, vistoriaId, fotos, modo, onFoto
                             {/* Legenda */}
                             {modo === 'edicao' ? (
                                 editandoLegenda === foto.id ? (
-                                    <div className="p-2 flex gap-1">
+                                    <div className="p-2">
                                         <input
                                             type="text"
                                             value={legendaTemp}
                                             onChange={(e) => setLegendaTemp(e.target.value)}
-                                            className="flex-1 text-xs p-1 border rounded"
-                                            placeholder="Legenda..."
+                                            className="w-full text-xs p-2 border rounded mb-2"
+                                            style={{ backgroundColor: '#FFFFFF', color: '#1B211B', borderColor: '#9CA3AF' }}
+                                            placeholder="Descreva a foto (ex.: infiltração no ralo)"
                                             autoFocus
                                         />
-                                        <button
-                                            type="button"
-                                            onClick={() => handleSalvarLegenda(foto.id)}
-                                            className="p-1 text-green-600"
-                                        >
-                                            <Check size={14} />
-                                        </button>
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleSalvarLegenda(foto.id)}
+                                                className="flex-1 text-xs font-semibold px-2 py-1 rounded text-white"
+                                                style={{ backgroundColor: '#10B981' }}
+                                            >
+                                                Salvar
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setEditandoLegenda(null); setLegendaTemp(''); }}
+                                                className="flex-1 text-xs font-semibold px-2 py-1 rounded border"
+                                                style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                                            >
+                                                Cancelar
+                                            </button>
+                                        </div>
                                     </div>
                                 ) : (
                                     <div
-                                        className="p-2 cursor-pointer hover:bg-gray-50"
+                                        className="p-2 cursor-pointer flex items-start gap-1"
+                                        title="Editar legenda"
                                         onClick={() => {
                                             setEditandoLegenda(foto.id);
                                             setLegendaTemp(foto.legenda || '');
                                         }}
                                     >
-                                        {foto.legenda ? (
-                                            <p className="text-xs line-clamp-2" style={{ color: 'var(--text)' }}>
-                                                {foto.legenda}
-                                            </p>
-                                        ) : (
-                                            <p className="text-xs italic" style={{ color: 'var(--text-secondary)' }}>
-                                                Clique para adicionar legenda
-                                            </p>
-                                        )}
+                                        <div className="flex-1">
+                                            {foto.legenda ? (
+                                                <p className="text-xs line-clamp-2" style={{ color: 'var(--text)' }}>
+                                                    {foto.legenda}
+                                                </p>
+                                            ) : (
+                                                <p className="text-xs italic" style={{ color: 'var(--text-secondary)' }}>
+                                                    Adicionar legenda...
+                                                </p>
+                                            )}
+                                        </div>
+                                        <Edit2 size={12} className="flex-shrink-0 mt-0.5" style={{ color: 'var(--text-secondary)' }} />
                                     </div>
                                 )
                             ) : (
@@ -292,20 +314,31 @@ export default function GaleriaFotos({ comodoId, vistoriaId, fotos, modo, onFoto
             {/* Modal de tela cheia */}
             {fotoAmpliada && (
                 <div
-                    className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4"
+                    className="fixed inset-0 flex items-center justify-center p-4"
+                    style={{ backgroundColor: 'rgba(0, 0, 0, 0.92)', zIndex: 60 }}
                     onClick={() => setFotoAmpliada(null)}
                 >
                     <button
                         type="button"
-                        className="absolute top-4 right-4 p-2 rounded-full bg-white bg-opacity-20 text-white"
+                        className="absolute top-4 right-4 p-2 rounded-full"
+                        style={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', color: '#1B211B' }}
                         onClick={() => setFotoAmpliada(null)}
                     >
                         <X size={24} />
                     </button>
-                    <div className="max-w-5xl max-h-full">
-                        <img src={fotoAmpliada.url} alt={fotoAmpliada.legenda || 'Foto ampliada'} className="max-w-full max-h-full object-contain" />
+                    <div className="flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+                        <img
+                            src={fotoAmpliada.url}
+                            alt={fotoAmpliada.legenda || 'Foto ampliada'}
+                            style={{ maxWidth: '90vw', maxHeight: '75vh', objectFit: 'contain' }}
+                        />
                         {fotoAmpliada.legenda && (
-                            <p className="text-white text-center mt-4">{fotoAmpliada.legenda}</p>
+                            <div className="text-center mt-4 mb-8 px-4" style={{ maxWidth: '90vw' }}>
+                                <p className="text-xs uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                                    Descrição
+                                </p>
+                                <p className="text-white">{fotoAmpliada.legenda}</p>
+                            </div>
                         )}
                     </div>
                 </div>

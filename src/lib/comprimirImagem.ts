@@ -1,4 +1,8 @@
-export async function comprimirImagem(file: File, maxWidth = 1920, quality = 0.7): Promise<Blob> {
+export async function comprimirImagem(
+    file: File,
+    maxWidth = 1600,
+    quality = 0.75
+): Promise<{ blob: Blob; largura: number; altura: number }> {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -7,7 +11,6 @@ export async function comprimirImagem(file: File, maxWidth = 1920, quality = 0.7
                 const canvas = document.createElement('canvas');
                 let { width, height } = img;
 
-                // Redimensiona se for maior que maxWidth
                 if (width > maxWidth) {
                     height = (height * maxWidth) / width;
                     width = maxWidth;
@@ -27,7 +30,7 @@ export async function comprimirImagem(file: File, maxWidth = 1920, quality = 0.7
                 canvas.toBlob(
                     (blob) => {
                         if (blob) {
-                            resolve(blob);
+                            resolve({ blob, largura: Math.round(width), altura: Math.round(height) });
                         } else {
                             reject(new Error('Não foi possível comprimir a imagem.'));
                         }

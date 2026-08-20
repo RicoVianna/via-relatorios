@@ -40,6 +40,12 @@ export default async function RevisaoPage({ params }: { params: Promise<{ id: st
         .eq('vistoria_id', vistoriaId)
         .order('criado_em', { ascending: true });
 
+    const { data: fotos } = await supabase
+        .from('fotos')
+        .select('*')
+        .eq('vistoria_id', vistoriaId)
+        .order('ordem', { ascending: true });
+
     return (
         <main className="min-h-screen pb-20" style={{ backgroundColor: 'var(--bg)' }}>
             {/* Header com título e botão de voltar condicionais */}
@@ -149,7 +155,7 @@ export default async function RevisaoPage({ params }: { params: Promise<{ id: st
                         {isFinalizada ? 'Voltar aos Detalhes' : 'Voltar e Editar'}
                     </Link>
                     <BotaoCompartilhar vistoria={vistoria} comodos={comodos || []} />
-                    <BotaoGerarPDF vistoria={vistoria} comodos={comodos || []} profile={profile} />
+                    <BotaoGerarPDF vistoria={vistoria} comodos={comodos || []} fotos={fotos || []} profile={profile} />
                 </div>
             </div>
         </main>

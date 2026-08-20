@@ -1,4 +1,4 @@
-import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer';
 
 // Registrando uma fonte padrão para evitar problemas de acentuação no PDF
 Font.register({
@@ -19,11 +19,33 @@ const styles = StyleSheet.create({
     comodoBox: { marginBottom: 15, padding: 10, backgroundColor: '#F9FAFB', borderRadius: 4, border: '1pt solid #E5E7EB' },
     comodoTitle: { fontSize: 12, fontWeight: 'bold', color: '#111827', marginBottom: 5 },
     comodoText: { fontSize: 10, color: '#374151', lineHeight: 1.5 },
+    fotoBox: { marginBottom: 10, padding: 8, backgroundColor: '#FFFFFF', borderRadius: 4, border: '1pt solid #E5E7EB' },
+    fotoImg: { width: '100%', height: 220, objectFit: 'contain', borderRadius: 4, marginBottom: 6 },
+    fotoTitle: { fontSize: 10, fontWeight: 'bold', color: '#374151', marginTop: 6, marginBottom: 2 },
+    fotoLegenda: { fontSize: 9, color: '#6B7280', marginTop: 2 },
     footer: { position: 'absolute', bottom: 30, left: 30, right: 30, textAlign: 'center', color: '#9CA3AF', fontSize: 9, borderTop: '1pt solid #E5E7EB', paddingTop: 10 }
 });
 
-export default function DocumentoPDF({ vistoria, comodos, profile }: { vistoria: any; comodos: any[]; profile?: any }) {
+// Calcula o tamanho exibido da foto mantendo a proporção real
+function tamanhoFoto(foto: any) {
+    const maxW = 500;
+    const maxH = 260;
+    const w = foto.largura || 1000;
+    const h = foto.altura || 1000;
+    const escala = Math.min(maxW / w, maxH / h);
+    return { width: Math.round(w * escala), height: Math.round(h * escala) };
+}
+
+export default function DocumentoPDF({ vistoria, comodos, fotos, profile }: { vistoria: any; comodos: any[]; fotos?: any[]; profile?: any }) {
     const tipoFormatado = vistoria.tipo === 'ENTRADA' ? 'Entrada' : vistoria.tipo === 'SAIDA' ? 'Saída' : 'Captação';
+
+    // Grupos de cômodos que têm fotos (para colar os títulos às fotos)
+    const comodosComFotos = (comodos ?? [])
+        .map((comodo: any) => ({
+            comodo,
+            fotosDoComodo: (fotos ?? []).filter((f: any) => f.comodo_id === comodo.id),
+        }))
+        .filter((grupo: any) => grupo.fotosDoComodo.length > 0);
 
     return (
         <Document>
@@ -102,6 +124,40 @@ export default function DocumentoPDF({ vistoria, comodos, profile }: { vistoria:
                         <Text style={styles.comodoText}>Nenhum cômodo registrado nesta vistoria.</Text>
                     )}
                 </View>
+
+                {/* Registro Fotográfico */}
+                {comodosComFotos.length > 0 && (
+                    <View style={styles.section}>
+                        {comodosComFotos.map((grupo: any, grupoIndex: number) => (
+                            <View key={grupo.comodo.id}>
+                                {/* Título da seção + título do cômodo + 1ª foto viajam juntos */}
+                                <View wrap={false}>
+                                    {grupoIndex === 0 && (
+                                        <Text style={{ ...styles.sectionTitle, marginBottom: 12 }}>3. Registro Fotográfico</Text>
+                                    )}
+                                    <Text style={{ ...styles.comodoTitle, marginBottom: 10 }}>{grupo.comodo.nome_comodo}</Text>
+                                    <View style={styles.fotoBox}>
+                                        <Image src={grupo.fotosDoComodo[0].url} style={{ ...tamanhoFoto(grupo.fotosDoComodo[0]), alignSelf: 'center', marginBottom: 6, borderRadius: 4 }} />
+                                        <Text style={styles.fotoTitle}>Foto 1</Text>
+                                        {grupo.fotosDoComodo[0].legenda && (
+                                            <Text style={styles.fotoLegenda}>Descrição: {grupo.fotosDoComodo[0].legenda}</Text>
+                                        )}
+                                    </View>
+                                </View>
+                                {/* Demais fotos: cards independentes */}
+                                {grupo.fotosDoComodo.slice(1).map((foto: any, i: number) => (
+                                    <View key={foto.id} style={styles.fotoBox} wrap={false}>
+                                        <Image src={foto.url} style={{ ...tamanhoFoto(foto), alignSelf: 'center', marginBottom: 6, borderRadius: 4 }} />
+                                        <Text style={styles.fotoTitle}>Foto {i + 2}</Text>
+                                        {foto.legenda && (
+                                            <Text style={styles.fotoLegenda}>Descrição: {foto.legenda}</Text>
+                                        )}
+                                    </View>
+                                ))}
+                            </View>
+                        ))}
+                    </View>
+                )}
 
                 {/* Rodapé */}
                 <Text style={styles.footer}>
