@@ -6,6 +6,7 @@ import { finalizarVistoria } from './actions';
 import HistoricoModal from './HistoricoModal';
 import GaleriaFotos from '@/components/GaleriaFotos';
 import BotaoCopiarLink from './BotaoCopiarLink';
+import BotaoEnviarEmail from './BotaoEnviarEmail';
 
 export default async function DetalhesVistoriaPage({ params }: { params: Promise<{ id: string }> }) {
     const supabase = await createClient();
@@ -106,6 +107,10 @@ export default async function DetalhesVistoriaPage({ params }: { params: Promise
 
                             {isFinalizada && vistoria.codigo_validacao && (
                                 <BotaoCopiarLink codigo={vistoria.codigo_validacao} />
+                            )}
+
+                            {isFinalizada && (
+                                <BotaoEnviarEmail vistoriaId={vistoriaId} />
                             )}
                         </div>
                     </div>
